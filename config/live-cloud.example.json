@@ -1,5 +1,6 @@
 {
   "enabled": false,
+  "adaptive_learning": true,
   "account_scope": "credit_subaccount",
   "account_binding": null,
   "stop_capabilities_verified": false,

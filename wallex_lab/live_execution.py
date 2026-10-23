@@ -120,6 +120,65 @@ class Gateway:
                 result.append(dict(parent=entry['id'],symbol=symbol,quantity=str(remaining),cost_basis=str(cost*remaining/bought),**entry['context']['barriers']))
         return result
 
+    def closed_trades(self):
+        """Read fully settled roundtrips; cash flows include confirmed fees only."""
+        # ponytail: scans historical orders; add a settled-trade index if the retained ledger becomes large.
+        result=[]
+        for item in self.db.execute("SELECT id FROM orders WHERE role='entry' ORDER BY rowid").fetchall():
+            try:
+                entry=self.order(item['id']);symbol=entry['payload']['symbol'];base=symbol[:-4]
+                if not symbol.endswith('USDT'): continue
+                def settled(row,side):
+                    response=row['response'];payload=row['payload']
+                    if (row['state']!='acknowledged' or not isinstance(response,dict)
+                            or response.get('active') is not False
+                            or response.get('status') not in ('FILLED','CANCELED','CANCELLED','REJECTED','EXPIRED')
+                            or payload['symbol']!=symbol or payload['side']!=side
+                            or response.get('clientOrderId')!=row['id']
+                            or any(response.get(k)!=payload[k] for k in ('symbol','side','type'))):
+                        raise ValueError('Unsettled trade')
+                    quantity=number(response['executedQty']);original=number(response['origQty'],True)
+                    if (quantity>original or original!=number(payload['quantity'],True)
+                            or number(response['price'])!=number(payload['price'])
+                            or (response['status']=='FILLED' and quantity!=original)):
+                        raise ValueError('Invalid fill counters')
+                    fills=response.get('fills',[])
+                    if not isinstance(fills,list) or sum((number(f['quantity'],True) for f in fills),Decimal(0))!=quantity:
+                        raise ValueError('Incomplete fills')
+                    costs=[];base_fee=quote_fee=Decimal(0);unit=Decimal('.00000001')
+                    for fill in fills:
+                        fee=number(fill['fee']);asset=fill['feeAsset']
+                        if asset not in (base,'USDT'): raise ValueError('Unsupported fee currency')
+                        calculated=number(fill['quantity'],True)*number(fill['price'],True)
+                        cost=number(fill.get('sum',calculated))
+                        if abs(cost-calculated)>unit: raise ValueError('Fill cost mismatch')
+                        costs.append(cost)
+                        if asset==base: base_fee+=fee
+                        else: quote_fee+=fee
+                    cash=number(response['executedSum'])
+                    if abs(cash-sum(costs,Decimal(0)))>unit: raise ValueError('Incomplete fill costs')
+                    return quantity,base_fee,cash+quote_fee if side=='BUY' else cash-quote_fee
+                bought,base_fee,cost=settled(entry,'BUY');bought-=base_fee
+                if bought<=0 or cost<=0: continue
+                sold=proceeds=Decimal(0);reasons=[]
+                for child in self.db.execute('SELECT id FROM orders WHERE parent=? ORDER BY rowid',(entry['id'],)).fetchall():
+                    row=self.order(child['id'])
+                    if row['state'] in ('prepared','abandoned') and row['response'] is None: continue
+                    if row['role'] not in ('stop','exit'): raise ValueError('Unknown sell role')
+                    quantity,base_fee,cash=settled(row,'SELL')
+                    sold+=quantity+base_fee;proceeds+=cash
+                    if quantity:
+                        reason='native_stop' if row['role']=='stop' else row['context'].get('reason','unknown_exit')
+                        if reason not in reasons: reasons.append(reason)
+                if sold!=bought: continue
+                result.append(dict(entry_id=entry['id'],symbol=symbol,cost_usdt=str(cost),proceeds_usdt=str(proceeds),
+                    pnl_usdt=str(proceeds-cost),net_return=float((proceeds-cost)/cost),
+                    context=entry['context'],exit_reasons=reasons))
+            except (ValueError,KeyError,TypeError,ArithmeticError):
+                # An incomplete or inconsistent receipt cannot become a training label.
+                continue
+        return result
+
     def _risk(self,payload,context,snapshot):
         self._snapshot(snapshot)
         known={r['id'] for r in self.db.execute('SELECT id FROM orders')}

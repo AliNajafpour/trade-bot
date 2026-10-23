@@ -22,7 +22,7 @@ async def check(mode='llm_chart'):
         extras=['ADAUSDT','TRXUSDT','LTCUSDT'] if mode=='legacy_ensemble' else DEFAULTS['symbols'][4:]
         symbol=extras[0]
         config=dict(DEFAULTS,run_dir=str(root),source=str(root/'source'),model='unused',
-            account_binding='fixture',max_capital_usdt=100,llm_chart_symbols=extras if mode=='llm_chart' else [],
+            account_binding='fixture',max_capital_usdt=100,adaptive_learning=True,llm_chart_symbols=extras if mode=='llm_chart' else [],
             legacy_technical_symbols=extras if mode=='legacy_ensemble' else [])
         path.write_text(json.dumps(config))
         raw=Exchange();raw.binding='fixture'
@@ -86,6 +86,7 @@ async def check(mode='llm_chart'):
                 assert runner.gateway.db.execute('SELECT count(*) FROM orders').fetchone()[0]==0
                 for packet,_ in calls:
                     assert packet['mode']=='public_chart_analysis'
+                    assert 'adaptive_learning' not in packet,'OFF public review leaked real-trade learning'
                     assert not {'account_balances','managed_positions','position','max_capital_usdt'} & packet.keys()
                     assert 'authenticated_taker_fee' not in packet['risk_policy']
                     assert packet['prediction']['forecasts']==[]
@@ -110,10 +111,13 @@ async def check(mode='llm_chart'):
                 response,reports,receipt=await asyncio.to_thread(runner.review,symbol,None,{},prediction,
                     decision,current,None,gates,[])
                 assert calls[-1][0]['mode']=='real_spot_user_armed'
+                assert calls[-1][0]['adaptive_learning']['observation']['symbol']==symbol
                 row=dict(prediction=prediction,manager_receipt=receipt)
                 await runner.enter(symbol,response,reports,row)
                 assert row['status']=='entry_processed'
                 assert [order['type'] for order in raw.writes]==['LIMIT','STOP_LIMIT']
+                runner.update_learning()
+                assert runner.state['adaptive_learning']['settled_trades']==0,'Open position became a realized learning example'
         finally:runner.gateway.db.close()
     print('PASS',mode,'threaded review; OFF privacy/zero intents; all configured review paths; receipt-backed fake BUY+STOP')
 

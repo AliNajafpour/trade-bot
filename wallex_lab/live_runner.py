@@ -78,6 +78,8 @@ def read_config(path):
     config = dict(DEFAULTS, **json.loads(Path(path).read_text(encoding='utf-8')))
     if type(config['enabled']) is not bool:
         raise ValueError('enabled must be boolean')
+    if type(config.get('adaptive_learning',False)) is not bool:
+        raise ValueError('adaptive_learning must be boolean')
     return config
 
 
@@ -246,6 +248,11 @@ class LiveRunner:
         self.monitor_ok = False
         self.chart_rows = {}
         self.chart_due = {}
+        self.learning = None
+        if self.config.get('adaptive_learning'):
+            from .live_learning import LiveLearning
+            self.learning=LiveLearning(self.root,self.config['symbols'])
+            self.state['adaptive_learning']=self.learning.status()
 
     def publish(self):
         self.state['updated_at'] = stamp()
@@ -268,6 +275,16 @@ class LiveRunner:
         if self.gateway:
             self.gateway.config = config
         return config
+
+    def update_learning(self):
+        if not self.config.get('adaptive_learning'):
+            self.state['adaptive_learning']=dict(enabled=False,status='disabled')
+            return
+        if self.learning and self.config.get('adaptive_learning'):
+            try:
+                self.state['adaptive_learning']=self.learning.sync(self.gateway.closed_trades() if self.gateway else [])
+            except Exception as error:
+                self.state['adaptive_learning']=dict(enabled=True,status='blocked',error_type=type(error).__name__)
 
     def arm_check(self):
         config = self.refresh_config()
@@ -519,6 +536,15 @@ class LiveRunner:
                 for key in ('account_balances','managed_positions','max_capital_usdt','position'):
                     packet.pop(key,None)
                 packet['risk_policy'].pop('authenticated_taker_fee',None)
+        if (self.learning and self.config.get('adaptive_learning') and not public_only
+                and self.state.get('adaptive_learning',{}).get('status')!='blocked'):
+            observation=self.learning.observation(symbol,prediction,reports)
+            packet['adaptive_learning']=dict(observation=observation,status=self.learning.status())
+            prompt += ('\nUse adaptive_learning.observation.weights and weighted_direction as bounded '
+                'advisory source evidence learned from settled, fee-adjusted bot trades. '
+                'Explain material weighting effects. These are not calibrated TP/profit probabilities '
+                'or causal source attribution. All original numerical entry gates, costs, fixed barriers '
+                'and risk limits remain mandatory; learning never authorizes extra exposure.')
         receipt = run_one(packet, prompt, manager_schema(bool(position)), directory / 'inference',
                           timeout=min(120, max(1, float(self.config.get('manager_timeout_seconds', 60)))), images=[chart])
         if receipt.get('status') != 'ok':
@@ -574,6 +600,9 @@ class LiveRunner:
         ask = normalize(quote['ask'], snapshot['markets'][symbol]['tickSize'])
         evidence = dict(decision_at=stamp(), horizon_minutes=1440, execution_ask=ask, tp=prediction['tp'], sl=prediction['sl'],
                         support_flags=prediction['support_flags'], **{k: forecast[k] for k in ('p_tp_first', 'p_sl_first', 'p_no_touch')})
+        if row.get('manager_receipt'):
+            receipt_path=Path(row['manager_receipt']).resolve()
+            evidence.update(manager_receipt_path=str(receipt_path),manager_receipt_sha256=hashlib.sha256(receipt_path.read_bytes()).hexdigest())
         key = self.gateway.prepare_entry(f'weekly-live-{decision.value}-{symbol}', symbol, quantity, ask, prediction['sl'], prediction['tp'], snapshot, evidence, risk_multiplier=float(multiplier))
         try:
             self.arm_check()
@@ -711,6 +740,7 @@ class LiveRunner:
                         monitor = asyncio.create_task(self.protection())
                         charts = asyncio.create_task(self.chart_analysis())
                         next_scan = 0.
+                        next_learning = 0.
                         while True:
                             self.refresh_config()
                             if charts.done():
@@ -724,6 +754,9 @@ class LiveRunner:
                             if self.gateway is None and self.config.get('account_binding') == snapshot['account_binding']:
                                 self.gateway = LiveGateway(self.root, self.config, self.exchange)
                             self.publish()
+                            if time.monotonic()>=next_learning:
+                                self.update_learning()
+                                next_learning=time.monotonic()+60
                             if time.monotonic() >= next_scan:
                                 await self.scan(snapshot)
                                 pending = any(r['status'] == 'data_pending' for r in self.state['last_scan']['results'])

@@ -53,6 +53,10 @@ def bootstrap(data_dir):
             'legacy_model_dirs','legacy_timeout_seconds')})
         config['technical_split_version']=1
         save_json(execution,config)
+    if config.get('enabled') is False and 'adaptive_learning' not in config and config.get('symbols')==template['symbols']:
+        from .context import save_json
+        config['adaptive_learning']=True
+        save_json(execution,config)
     source=json.loads((ROOT/'config/weekly-source.example.json').read_text('utf-8'))
     source['run_dir']=str(data/'source')
     source['symbols']=[s[:-4]+'/USDT' for s in config['symbols']]

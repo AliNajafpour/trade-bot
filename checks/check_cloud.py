@@ -72,3 +72,12 @@ with TemporaryDirectory() as d,patch.dict('os.environ',{'WALLEX_FORCE_DISABLE':'
     changed['legacy_technical_symbols']=[];path.write_text(json.dumps(changed));bootstrap(d)
     assert json.loads(path.read_text())==changed,'Preserve later operator changes'
 print('PASS disabled-only 3+3 migration, account preservation and restart idempotence')
+
+with TemporaryDirectory() as d,patch.dict('os.environ',{'WALLEX_FORCE_DISABLE':'false'}):
+    path,_=bootstrap(d);config=json.loads(path.read_text());config.pop('adaptive_learning');config['enabled']=True
+    path.write_text(json.dumps(config));bootstrap(d);assert 'adaptive_learning' not in json.loads(path.read_text())
+    config['enabled']=False;path.write_text(json.dumps(config));bootstrap(d)
+    config=json.loads(path.read_text());assert config['adaptive_learning'] is True
+    config['adaptive_learning']=False;path.write_text(json.dumps(config));bootstrap(d)
+    assert json.loads(path.read_text())['adaptive_learning'] is False
+print('PASS learning migration only while OFF; explicit disabled setting persists')
