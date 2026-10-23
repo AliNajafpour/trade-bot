@@ -11,6 +11,10 @@ COPY run.py ./
 COPY wallex_lab ./wallex_lab
 COPY config ./config
 COPY models/barrier-survival/late ./models/barrier-survival/late
+COPY models/barrier-survival/pretrained8 ./models/barrier-survival/pretrained8
+COPY models/kronos-small-901c26c ./models/kronos-small-901c26c
+COPY models/kronos-tokenizer-base-0e01173 ./models/kronos-tokenizer-base-0e01173
+COPY models/chronos-2-29ec376 ./models/chronos-2-29ec376
 COPY docs/fee-evidence ./docs/fee-evidence
 COPY third_party ./third_party
 RUN python run.py verify

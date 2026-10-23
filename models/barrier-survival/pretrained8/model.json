@@ -1,0 +1,98 @@
+{
+  "symbols": [
+    "ADAUSDT",
+    "BNBUSDT",
+    "BTCUSDT",
+    "DOGEUSDT",
+    "ETHUSDT",
+    "LINKUSDT",
+    "SOLUSDT",
+    "XRPUSDT"
+  ],
+  "context": 10080,
+  "width": 96,
+  "layers": 3,
+  "minimum_history_minutes": 10080,
+  "feature_version": "relative-v2",
+  "temperature": 1.0,
+  "geometry_support": {
+    "min_fraction": 0.00010000500016667085,
+    "max_fraction": 0.16183424272828312,
+    "max_ratio": 8.0
+  },
+  "semantics": "price_touch",
+  "protocol_sha256": "74a824195789c1556fda9f20107f7d7b719f65913864f20877406cae9e2692db",
+  "dataset_manifest_sha256": "74443edeca7067857d9dcb5d98b3ec65319361a3d125137e90009d4385ca7b55",
+  "fold": {
+    "name": "early",
+    "boundaries": [
+      "2023-01-01 12:00:00+00:00",
+      "2026-05-26 00:00:00+00:00",
+      "2026-06-25 00:00:00+00:00",
+      "2026-07-25 00:00:00+00:00",
+      "2026-08-24 00:00:00+00:00"
+    ],
+    "fit": 2822568,
+    "selection": 66816,
+    "calibration": 66816,
+    "test": 66816
+  },
+  "model_family": "Existing eight-asset early-fold pretrained variant, seed 42",
+  "source_checkpoint_sha256": "fdc447607006f8c72b25df36e94b2f00bcd85eb367dfd4758cbb60505d6c5042",
+  "source_fit_sha256": "d53f4762ccd60ae499442b7cdbcf9981aaddb089948f3b6f86161044cec3abf5",
+  "source_calibration_sha256": "1acc6b4dbe62eabdf348ca169262dd53da8b0488078910db58e99b09e847d4d8",
+  "source_test_sha256": "e4d8b89aa0a7aaf6a042acbd0106ac48d2cc86f266ac1808f4a07b8c7e10a832",
+  "export_created_utc": "2026-10-23T22:38:48.557960+00:00",
+  "new_training_performed": false,
+  "compatibility": {
+    "removed_unused_tensors": [
+      "mask_token",
+      "reconstruction.bias",
+      "reconstruction.weight"
+    ],
+    "symbol_remapping": false,
+    "reason": "All optional flags false; original forward directly calls MultiScaleSurvival on the same ten channels."
+  },
+  "training_history": {
+    "selected_epoch": 1,
+    "stopped_for_deadline": true,
+    "pretraining": {
+      "epochs": 2,
+      "origins_per_epoch": 2822568,
+      "fit_only": true,
+      "curve": [
+        {
+          "epoch": 1,
+          "loss": 0.22630412533234517,
+          "origins_seen": 832000,
+          "optimizer_steps": 13000,
+          "complete": false,
+          "reason": "User superseded seven-hour budget with at most two hours"
+        }
+      ],
+      "completed_epochs": 0,
+      "actual_origin_visits": 832000,
+      "shortened_for_deadline": true
+    }
+  },
+  "limitations": [
+    "One member, not the three-member Weekly late ensemble.",
+    "Historical metrics pool eight Binance assets and 128 barrier queries, not this fixed 2% policy or a per-asset validation.",
+    "Deployment uses other venues; cross-venue probability calibration has not been measured.",
+    "No prospective profitability or execution performance claim."
+  ],
+  "members": [
+    {
+      "file": "member-0.pt",
+      "sha256": "07dbefdb945f00294a30bea9354d8daf5450a423dff9035a52167ec0d5e76a50",
+      "config": {
+        "symbols": 8,
+        "context": 10080,
+        "width": 96,
+        "layers": 3,
+        "query_only": false,
+        "hierarchical": true
+      }
+    }
+  ]
+}

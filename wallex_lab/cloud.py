@@ -40,6 +40,18 @@ def bootstrap(data_dir):
             proxy_venues={**template.get('proxy_venues',{}),**config.get('proxy_venues',{})},
             llm_chart_symbols=template.get('llm_chart_symbols',[]),
             manager_scan_seconds=template.get('manager_scan_seconds',600))
+        config.update({key:template[key] for key in ('probability_symbols','probability_model',
+            'probability_model_metadata_sha256','legacy_technical_symbols','legacy_model_dirs','legacy_timeout_seconds')})
+        save_json(execution,config)
+    if (config.get('enabled') is False and not config.get('technical_split_version')
+            and config.get('symbols')==template['symbols']
+            and config.get('model_metadata_sha256')==old_hash
+            and config.get('llm_chart_symbols')==template['symbols'][4:]):
+        from .context import save_json
+        config.update({key:template[key] for key in ('llm_chart_symbols','probability_symbols',
+            'probability_model','probability_model_metadata_sha256','legacy_technical_symbols',
+            'legacy_model_dirs','legacy_timeout_seconds')})
+        config['technical_split_version']=1
         save_json(execution,config)
     source=json.loads((ROOT/'config/weekly-source.example.json').read_text('utf-8'))
     source['run_dir']=str(data/'source')

@@ -1,0 +1,222 @@
+{
+  "source_checkpoint_sha256": "fdc447607006f8c72b25df36e94b2f00bcd85eb367dfd4758cbb60505d6c5042",
+  "exported_member_sha256": "07dbefdb945f00294a30bea9354d8daf5450a423dff9035a52167ec0d5e76a50",
+  "used_tensors_equal": true,
+  "new_training_performed": false,
+  "actual_observed_histories": true,
+  "symbols": [
+    {
+      "symbol": "XRPUSDT",
+      "observed_history_path": "D:\\ALI\\Programming-AI\\compitions-challenges\\starcoach\\wallex\\runs\\ten-assets-proxy-review\\mexc\\XRPUSDT\\mexc-cache.csv",
+      "observed_history_sha256": "543f9ed20deb697589f92a7620df4c915f243383977a4afa3dadf3d9c6a46794",
+      "venue": "mexc",
+      "original_export_max_abs_logit_difference": 0.0,
+      "cross_venue_calibration": "Unmeasured: trained on Binance, observed context from mexc",
+      "forecast": {
+        "symbol": "XRPUSDT",
+        "side": "long",
+        "decision_at": "2026-10-23T21:49:00+00:00",
+        "history_last_open": "2026-10-23T21:48:00+00:00",
+        "entry": 1.3054,
+        "tp": 1.331508,
+        "sl": 1.2792919999999999,
+        "semantics": "Price-touch probabilities, not fill probabilities. Horizons never trigger liquidation.",
+        "support_flags": [],
+        "forecasts": [
+          {
+            "horizon_minutes": 5,
+            "p_tp_first": 1.6843852790771052e-05,
+            "p_sl_first": 3.381034548510797e-05,
+            "p_no_touch": 0.9999493360519409,
+            "p_tp_given_touch": 0.33252629326070904,
+            "member_std_tp": 0.0,
+            "member_std_sl": 0.0
+          },
+          {
+            "horizon_minutes": 15,
+            "p_tp_first": 8.274920401163399e-05,
+            "p_sl_first": 0.00020635814871639013,
+            "p_no_touch": 0.9997108578681946,
+            "p_tp_given_touch": 0.28622310443096816,
+            "member_std_tp": 0.0,
+            "member_std_sl": 0.0
+          },
+          {
+            "horizon_minutes": 60,
+            "p_tp_first": 0.0005023341509513557,
+            "p_sl_first": 0.0018993663834407926,
+            "p_no_touch": 0.9975982904434204,
+            "p_tp_given_touch": 0.20915769628976352,
+            "member_std_tp": 0.0,
+            "member_std_sl": 0.0
+          },
+          {
+            "horizon_minutes": 240,
+            "p_tp_first": 0.006082119420170784,
+            "p_sl_first": 0.018412768840789795,
+            "p_no_touch": 0.9755051136016846,
+            "p_tp_given_touch": 0.24830157849155549,
+            "member_std_tp": 0.0,
+            "member_std_sl": 0.0
+          },
+          {
+            "horizon_minutes": 1440,
+            "p_tp_first": 0.2654913067817688,
+            "p_sl_first": 0.19626033306121826,
+            "p_no_touch": 0.5382483005523682,
+            "p_tp_given_touch": 0.5749655959468727,
+            "member_std_tp": 0.0,
+            "member_std_sl": 0.0
+          }
+        ],
+        "protocol_sha256": "74a824195789c1556fda9f20107f7d7b719f65913864f20877406cae9e2692db",
+        "dataset_manifest_sha256": "74443edeca7067857d9dcb5d98b3ec65319361a3d125137e90009d4385ca7b55",
+        "model_hashes": [
+          "07dbefdb945f00294a30bea9354d8daf5450a423dff9035a52167ec0d5e76a50"
+        ]
+      }
+    },
+    {
+      "symbol": "DOGEUSDT",
+      "observed_history_path": "D:\\ALI\\Programming-AI\\compitions-challenges\\starcoach\\wallex\\runs\\ten-assets-proxy-review\\kucoin\\DOGEUSDT\\kucoin-cache.csv",
+      "observed_history_sha256": "c9f1aa13770357196b1ab80fcc22ee3c82f6f38ac8856464ad81f94dbeb8f9de",
+      "venue": "kucoin",
+      "original_export_max_abs_logit_difference": 0.0,
+      "cross_venue_calibration": "Unmeasured: trained on Binance, observed context from kucoin",
+      "forecast": {
+        "symbol": "DOGEUSDT",
+        "side": "long",
+        "decision_at": "2026-10-23T21:49:00+00:00",
+        "history_last_open": "2026-10-23T21:48:00+00:00",
+        "entry": 0.07924,
+        "tp": 0.0808248,
+        "sl": 0.07765520000000001,
+        "semantics": "Price-touch probabilities, not fill probabilities. Horizons never trigger liquidation.",
+        "support_flags": [],
+        "forecasts": [
+          {
+            "horizon_minutes": 5,
+            "p_tp_first": 2.0956624211976305e-05,
+            "p_sl_first": 5.0344962801318616e-05,
+            "p_no_touch": 0.9999287128448486,
+            "p_tp_given_touch": 0.2939152561648975,
+            "member_std_tp": 0.0,
+            "member_std_sl": 0.0
+          },
+          {
+            "horizon_minutes": 15,
+            "p_tp_first": 8.537655230611563e-05,
+            "p_sl_first": 0.0002552814257796854,
+            "p_no_touch": 0.9996593594551086,
+            "p_tp_given_touch": 0.25062249469646053,
+            "member_std_tp": 0.0,
+            "member_std_sl": 0.0
+          },
+          {
+            "horizon_minutes": 60,
+            "p_tp_first": 0.0005356828332878649,
+            "p_sl_first": 0.0018880090210586786,
+            "p_no_touch": 0.9975763559341431,
+            "p_tp_given_touch": 0.221019364457241,
+            "member_std_tp": 0.0,
+            "member_std_sl": 0.0
+          },
+          {
+            "horizon_minutes": 240,
+            "p_tp_first": 0.005394522100687027,
+            "p_sl_first": 0.010904400609433651,
+            "p_no_touch": 0.9837011694908142,
+            "p_tp_given_touch": 0.3309741506619541,
+            "member_std_tp": 0.0,
+            "member_std_sl": 0.0
+          },
+          {
+            "horizon_minutes": 1440,
+            "p_tp_first": 0.3071845769882202,
+            "p_sl_first": 0.13203538954257965,
+            "p_no_touch": 0.5607801079750061,
+            "p_tp_given_touch": 0.6993866408545414,
+            "member_std_tp": 0.0,
+            "member_std_sl": 0.0
+          }
+        ],
+        "protocol_sha256": "74a824195789c1556fda9f20107f7d7b719f65913864f20877406cae9e2692db",
+        "dataset_manifest_sha256": "74443edeca7067857d9dcb5d98b3ec65319361a3d125137e90009d4385ca7b55",
+        "model_hashes": [
+          "07dbefdb945f00294a30bea9354d8daf5450a423dff9035a52167ec0d5e76a50"
+        ]
+      }
+    },
+    {
+      "symbol": "BNBUSDT",
+      "observed_history_path": "D:\\ALI\\Programming-AI\\compitions-challenges\\starcoach\\wallex\\runs\\ten-assets-proxy-review\\kucoin\\BNBUSDT\\kucoin-cache.csv",
+      "observed_history_sha256": "45f5bb68bdca48aa312c16346f8dcfc3a728d52334f23fdae79403d96f90682c",
+      "venue": "kucoin",
+      "original_export_max_abs_logit_difference": 0.0,
+      "cross_venue_calibration": "Unmeasured: trained on Binance, observed context from kucoin",
+      "forecast": {
+        "symbol": "BNBUSDT",
+        "side": "long",
+        "decision_at": "2026-10-23T21:49:00+00:00",
+        "history_last_open": "2026-10-23T21:48:00+00:00",
+        "entry": 740.709,
+        "tp": 755.5231799999999,
+        "sl": 725.89482,
+        "semantics": "Price-touch probabilities, not fill probabilities. Horizons never trigger liquidation.",
+        "support_flags": [],
+        "forecasts": [
+          {
+            "horizon_minutes": 5,
+            "p_tp_first": 9.557994417264126e-06,
+            "p_sl_first": 4.051668292959221e-05,
+            "p_no_touch": 0.9999499320983887,
+            "p_tp_given_touch": 0.19087480786062763,
+            "member_std_tp": 0.0,
+            "member_std_sl": 0.0
+          },
+          {
+            "horizon_minutes": 15,
+            "p_tp_first": 3.498617297736928e-05,
+            "p_sl_first": 0.00016898683679755777,
+            "p_no_touch": 0.9997960329055786,
+            "p_tp_given_touch": 0.17152354135468506,
+            "member_std_tp": 0.0,
+            "member_std_sl": 0.0
+          },
+          {
+            "horizon_minutes": 60,
+            "p_tp_first": 0.00020729395328089595,
+            "p_sl_first": 0.00121630250941962,
+            "p_no_touch": 0.9985763430595398,
+            "p_tp_given_touch": 0.14561286060494003,
+            "member_std_tp": 0.0,
+            "member_std_sl": 0.0
+          },
+          {
+            "horizon_minutes": 240,
+            "p_tp_first": 0.003990815952420235,
+            "p_sl_first": 0.008470834232866764,
+            "p_no_touch": 0.9875383377075195,
+            "p_tp_given_touch": 0.3202477916714466,
+            "member_std_tp": 0.0,
+            "member_std_sl": 0.0
+          },
+          {
+            "horizon_minutes": 1440,
+            "p_tp_first": 0.23794211447238922,
+            "p_sl_first": 0.11651915311813354,
+            "p_no_touch": 0.6455386877059937,
+            "p_tp_given_touch": 0.6712781796719814,
+            "member_std_tp": 0.0,
+            "member_std_sl": 0.0
+          }
+        ],
+        "protocol_sha256": "74a824195789c1556fda9f20107f7d7b719f65913864f20877406cae9e2692db",
+        "dataset_manifest_sha256": "74443edeca7067857d9dcb5d98b3ec65319361a3d125137e90009d4385ca7b55",
+        "model_hashes": [
+          "07dbefdb945f00294a30bea9354d8daf5450a423dff9035a52167ec0d5e76a50"
+        ]
+      }
+    }
+  ]
+}

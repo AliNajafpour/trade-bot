@@ -194,13 +194,19 @@ async def check_degraded_protection(degraded):
             gateway.db.close()
 
 
-def check_llm_entries():
+def check_llm_entries(technical_mode='llm_chart',selected_symbol='XRPUSDT'):
     with TemporaryDirectory() as temporary:
         root=Path(temporary)
-        cfg=dict(DEFAULTS,enabled=True,account_binding='fixture',stop_capabilities_verified=True,llm_chart_symbols=['XRPUSDT'])
+        field='legacy_technical_symbols' if technical_mode=='legacy_ensemble' else 'llm_chart_symbols'
+        cfg=dict(DEFAULTS,enabled=True,account_binding='fixture',stop_capabilities_verified=True)
+        cfg[field]=[selected_symbol]
         raw=Exchange();gateway=Gateway(root,cfg,raw)
         directory=root/'reviews'/'xrp'/'inference';directory.mkdir(parents=True)
-        packet=dict(symbol='XRPUSDT',mode='real_spot_user_armed',paper_only=False,quote=dict(ask=100),prediction=dict(technical_mode='llm_chart',tp=102,sl=98))
+        packet=dict(symbol=selected_symbol,mode='real_spot_user_armed',paper_only=False,quote=dict(ask=100),
+            admission=dict(eligible=True),prediction=dict(technical_mode=technical_mode,tp=102,sl=98))
+        if technical_mode=='legacy_ensemble':
+            packet['prediction']['legacy_technical']=dict(status='ok',models=dict(kronos=dict(status='ok'),chronos2=dict(status='ok')),
+                rules=dict(status='ok',strategies=['offline strategy fixture']))
         response=dict(action='enter',risk_multiplier=.5,reason='offline validated fixture')
         path=directory/'receipt.json'
         def proof(**changes):
@@ -209,13 +215,14 @@ def check_llm_entries():
             receipt=dict(status='ok',response=response,ended_utc=stamp(),files_sha256={
                 name:hashlib.sha256((directory/name).read_bytes()).hexdigest() for name in ('packet.json','final.json')})
             receipt.update(changes);path.write_text(json.dumps(receipt))
-            return dict(technical_mode='llm_chart',manager_receipt_path=str(path),manager_receipt_sha256=hashlib.sha256(path.read_bytes()).hexdigest(),
+            return dict(technical_mode=technical_mode,manager_receipt_path=str(path),manager_receipt_sha256=hashlib.sha256(path.read_bytes()).hexdigest(),
                 decision_at=stamp(),execution_ask=100,tp=102,sl=98)
         value=snapshot()
-        value['markets']['XRPUSDT']=dict(value['markets']['BTCUSDT'],symbol='XRPUSDT',baseAsset='XRP')
-        value['quotes']['XRPUSDT']=deepcopy(value['quotes']['BTCUSDT'])
-        value['fees']['XRPUSDT']=deepcopy(value['fees']['BTCUSDT'])
-        def prepare_llm(key,evidence,multiplier=.5,symbol='XRPUSDT'):
+        value['markets'][selected_symbol]=dict(value['markets']['BTCUSDT'],symbol=selected_symbol,baseAsset=selected_symbol[:-4])
+        value['quotes'][selected_symbol]=deepcopy(value['quotes']['BTCUSDT'])
+        value['fees'][selected_symbol]=deepcopy(value['fees']['BTCUSDT'])
+        def prepare_llm(key,evidence,multiplier=.5,symbol=None):
+            if symbol is None: symbol=selected_symbol
             return gateway.prepare_entry(key,symbol,'.1',evidence['execution_ask'],evidence['sl'],evidence['tp'],value,evidence,risk_multiplier=multiplier)
         def reject(key,evidence,**kwargs):
             try: prepare_llm(key,evidence,**kwargs)
@@ -224,12 +231,43 @@ def check_llm_entries():
         try:
             evidence=proof();key=prepare_llm('valid',evidence)
             assert gateway.order(key)['context']['evidence']==evidence and not raw.writes
-            for symbol in ('BTCUSDT','XRPUSDT'):
-                cfg['llm_chart_symbols']=['BTCUSDT']
+            if technical_mode=='legacy_ensemble':
+                original=deepcopy(packet['prediction']['legacy_technical'])
+                for name in ('kronos','chronos2'):
+                    for state in ('missing','error'):
+                        if state=='missing': packet['prediction']['legacy_technical']['models'].pop(name)
+                        else: packet['prediction']['legacy_technical']['models'][name]={'status':'error'}
+                        reject(name+'-'+state,proof())
+                        packet['prediction']['legacy_technical']=deepcopy(original)
+                for rules in ({'status':'error','strategies':['fixture']},{'status':'ok','strategies':[]},{'status':'ok','strategies':'fixture'},None):
+                    packet['prediction']['legacy_technical']['rules']=rules
+                    reject('missing-or-failed-rules',proof())
+                packet['prediction']['legacy_technical']=deepcopy(original)
+                packet['prediction']['legacy_technical']['status']='error'
+                reject('failed-legacy-analysis',proof())
+                packet['prediction']['legacy_technical']=original
+                for eligible in (False,1,None):
+                    packet['admission']['eligible']=eligible
+                    reject('ineligible-legacy-candidate',proof())
+                packet['admission']['eligible']=True
+                reject('wrong-evidence-mode',dict(proof(),technical_mode='llm_chart'))
+                for symbol in ('XRPUSDT','DOGEUSDT','BNBUSDT'):
+                    cfg['probability_symbols']=[symbol]
+                    cfg[field]=[symbol]
+                    cfg['llm_chart_symbols']=[symbol]
+                    value['markets'][symbol]=dict(value['markets'][selected_symbol],symbol=symbol,baseAsset=symbol[:-4])
+                    value['quotes'][symbol]=deepcopy(value['quotes'][selected_symbol])
+                    value['fees'][symbol]=deepcopy(value['fees'][selected_symbol])
+                    packet['symbol']=symbol
+                    low=dict(proof(),horizon_minutes=1440,p_tp_first=.55,p_sl_first=.3,p_no_touch=.15)
+                    reject('probability-cannot-bypass-'+symbol,low,symbol=symbol)
+                cfg['probability_symbols']=[];cfg['llm_chart_symbols']=[];packet['symbol']=selected_symbol
+            for symbol in ('BTCUSDT',selected_symbol):
+                cfg[field]=['BTCUSDT']
                 reject('unconfigured-or-original-'+symbol,proof(),symbol=symbol)
             low=dict(proof(),horizon_minutes=1440,p_tp_first=.55,p_sl_first=.3,p_no_touch=.15)
             reject('original-four-strict55',low,symbol='BTCUSDT')
-            cfg['llm_chart_symbols']=['XRPUSDT']
+            cfg[field]=[selected_symbol]
             reject('missing-receipt',dict(proof(),manager_receipt_path=str(directory/'absent.json')))
             reject('wrong-receipt-hash',dict(proof(),manager_receipt_sha256='0'*64))
             reject('stale-review',proof(ended_utc='2000-01-01T00:00:00+00:00'))
@@ -241,12 +279,12 @@ def check_llm_entries():
             packet['paper_only']=True
             reject('paper-analysis',proof());packet['paper_only']=False
             packet['prediction']['technical_mode']='weekly'
-            reject('model-analysis-as-chart',proof());packet['prediction']['technical_mode']='llm_chart'
+            reject('model-analysis-as-chart',proof());packet['prediction']['technical_mode']=technical_mode
             packet['entry_policy']=dict(reference_ask=100,max_reprice_bps=10,tp_fraction=.02,sl_fraction=.02)
             def repriced(price):
                 evidence=proof()
                 evidence.update(execution_ask=str(price),tp=normalize(Decimal(str(price))*Decimal('1.02'),2),sl=normalize(Decimal(str(price))*Decimal('.98'),2))
-                value['quotes']['XRPUSDT'].update(ask=float(price),bid=float(price)-.01)
+                value['quotes'][selected_symbol].update(ask=float(price),bid=float(price)-.01)
                 return evidence
             evidence=repriced('100.05')
             key=prepare_llm('five-bps-reprice',evidence)
@@ -272,13 +310,13 @@ def check_llm_entries():
             packet['entry_policy']['reference_ask']=101
             reject('mismatched-policy-reference',repriced('100.05'))
             packet.pop('entry_policy')
-            value['quotes']['XRPUSDT'].update(ask=100,bid=99.99)
+            value['quotes'][selected_symbol].update(ask=100,bid=99.99)
             packet['quote']['ask']=99
             reject('changed-ask',proof());packet['quote']['ask']=100
             packet['prediction']['tp']=103
             reject('changed-target',proof());packet['prediction']['tp']=102
             packet['symbol']='DOGEUSDT'
-            reject('changed-symbol',proof());packet['symbol']='XRPUSDT'
+            reject('changed-symbol',proof());packet['symbol']=selected_symbol
             evidence=proof();(directory/'packet.json').write_text('{}')
             reject('changed-packet',evidence)
             evidence=proof();(directory/'final.json').write_text('{}')
@@ -300,6 +338,7 @@ def check_llm_entries():
 async def check():
     await check_snapshot()
     check_llm_entries()
+    check_llm_entries('legacy_ensemble','ADAUSDT')
     assert normalize('1.2349',3)=='1.234'
     with TemporaryDirectory() as temporary, ExitStack() as cleanup:
         cfg=dict(DEFAULTS,enabled=True,account_binding='fixture',stop_capabilities_verified=True);exchange=Exchange();g=Gateway(Path(temporary),cfg,exchange)
@@ -445,7 +484,7 @@ async def check():
         assert status['actions'][0]['action']=='exit_attempt'
         assert any(p['side']=='SELL' and p['type']=='LIMIT' and p['price']=='103.00' for p in exchange.writes)
         assert len([r for r in exchange.orders.values() if r['active'] and r['type']=='STOP_LIMIT'])==1, 'Unfilled target exit lost protection'
-    print('live execution: optional-market isolation, owned/pending fail-closed, BTC protection preserved; receipt-bound chart entries, strict55, bounded snapshots, disabled writes and risk caps OK')
+    print('live execution: optional-market isolation, owned/pending fail-closed, BTC protection preserved; receipt-bound chart/legacy entries, both forecasters and strategy bank, strict55, bounded snapshots, disabled writes and risk caps OK')
 
 
 if __name__=='__main__': asyncio.run(check())

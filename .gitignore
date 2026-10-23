@@ -33,3 +33,9 @@ models/barrier-survival/late/*
 video-demo/*preview.png
 video-demo/verification.json
 .DS_Store
+!models/barrier-survival/pretrained8/
+models/barrier-survival/pretrained8/*
+!models/barrier-survival/pretrained8/model.json
+!models/barrier-survival/pretrained8/member-0.pt
+!models/barrier-survival/pretrained8/provenance/
+!models/barrier-survival/pretrained8/provenance/*.json

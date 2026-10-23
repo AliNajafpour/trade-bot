@@ -14,14 +14,16 @@ from wallex_lab.live_execution import DEFAULTS
 from wallex_lab.live_runner import LiveRunner,LiveGateway,ArmedExchange,stamp
 
 
-async def check():
+async def check(mode='llm_chart'):
     import pandas as pd
     with TemporaryDirectory() as temporary:
         root=Path(temporary)
         path=root/'config.json'
-        extras=DEFAULTS['symbols'][4:]
+        extras=['ADAUSDT','TRXUSDT','LTCUSDT'] if mode=='legacy_ensemble' else DEFAULTS['symbols'][4:]
+        symbol=extras[0]
         config=dict(DEFAULTS,run_dir=str(root),source=str(root/'source'),model='unused',
-            account_binding='fixture',max_capital_usdt=100,llm_chart_symbols=extras)
+            account_binding='fixture',max_capital_usdt=100,llm_chart_symbols=extras if mode=='llm_chart' else [],
+            legacy_technical_symbols=extras if mode=='legacy_ensemble' else [])
         path.write_text(json.dumps(config))
         raw=Exchange();raw.binding='fixture'
         current=snapshot()
@@ -45,6 +47,12 @@ async def check():
             return None,dict(source='public fixture'),dict(symbol=symbol,technical_mode='llm_chart',
                 tp=102.,sl=98.,entry=100.,execution_ask=100.,decision_at=stamp(),forecasts=[],support_flags=[]),pd.Timestamp.now(tz='UTC').floor('min')
         runner.chart_forecast=forecast
+        async def legacy(*_):
+            origin=pd.Timestamp.now(tz='UTC').floor('h').isoformat()
+            return dict(status='ok',models={name:dict(status='ok',history=dict(forecast_origin_at=origin),
+                close_quantiles_by_step=dict(q50=[103.]*24)) for name in ('kronos','chronos2')},
+                rules=dict(status='ok',strategies=[dict(strategy='fixture')],candidates=[]))
+        runner.legacy_forecast=legacy
         def chart(*args,**kwargs):
             overlays.append(kwargs['signals'])
             return root/'chart.png'
@@ -64,17 +72,17 @@ async def check():
         try:
             with patch('wallex_lab.council_charts.render_chart',side_effect=chart),patch('wallex_lab.providers.run_one',side_effect=provider):
                 # Passing private barriers deliberately must still produce a public chart while OFF.
-                _,_,prediction,decision=forecast('XRPUSDT',current)
+                _,_,prediction,decision=forecast(symbol,current)
                 private=dict(prediction,tp=140.,sl=80.)
-                await asyncio.to_thread(runner.review,'XRPUSDT',None,{},private,decision,current,
-                    dict(symbol='XRPUSDT',target_price=140.,stop_price=80.),{},[dict(private='owned')])
+                await asyncio.to_thread(runner.review,symbol,None,{},private,decision,current,
+                    dict(symbol=symbol,target_price=140.,stop_price=80.),{},[dict(private='owned')])
                 assert overlays[-1]==[dict(stop_price=98.,target_price=102.)]
                 assert calls[-1][1]['properties']['action']['enum']==['enter','wait','reject']
                 calls.clear()
                 with patch('wallex_lab.live_runner.asyncio.sleep',side_effect=stop):
                     try:await runner.chart_analysis()
                     except asyncio.CancelledError:pass
-                assert len(calls)==6 and not raw.writes
+                assert len(calls)==len(extras) and not raw.writes
                 assert runner.gateway.db.execute('SELECT count(*) FROM orders').fetchone()[0]==0
                 for packet,_ in calls:
                     assert packet['mode']=='public_chart_analysis'
@@ -86,15 +94,29 @@ async def check():
                 config.update(enabled=True,stop_capabilities_verified=True)
                 path.write_text(json.dumps(config));runner.refresh_config()
                 runner.monitor_ok=True;runner.state['monitor']=dict(status='healthy',updated_at=stamp())
-                _,_,prediction,decision=forecast('XRPUSDT',current)
-                response,reports,receipt=await asyncio.to_thread(runner.review,'XRPUSDT',None,{},prediction,
-                    decision,current,None,{},[])
+                _,_,prediction,decision=forecast(symbol,current)
+                gates={}
+                if mode=='legacy_ensemble':
+                    prediction.update(technical_mode=mode,legacy_technical=await legacy())
+                    gates=runner.legacy_admission(symbol,prediction,current)
+                    assert gates['eligible']
+                    expired=deepcopy(prediction)
+                    for model in expired['legacy_technical']['models'].values():
+                        model['history']['forecast_origin_at']=(pd.Timestamp.now(tz='UTC').floor('h')-pd.Timedelta(hours=1)).isoformat()
+                        model['close_quantiles_by_step']['q50']=[200.]+[90.]*23
+                    assert not runner.legacy_admission(symbol,expired,current)['eligible'],'Past forecast peak admitted entry'
+                    expired['legacy_technical']['rules']['candidates']=[dict(target_price=103.,strategy_sources=['fixture'])]
+                    assert runner.legacy_admission(symbol,expired,current)['eligible'],'Positive rule setup was ignored'
+                response,reports,receipt=await asyncio.to_thread(runner.review,symbol,None,{},prediction,
+                    decision,current,None,gates,[])
                 assert calls[-1][0]['mode']=='real_spot_user_armed'
                 row=dict(prediction=prediction,manager_receipt=receipt)
-                await runner.enter('XRPUSDT',response,reports,row)
+                await runner.enter(symbol,response,reports,row)
                 assert row['status']=='entry_processed'
                 assert [order['type'] for order in raw.writes]==['LIMIT','STOP_LIMIT']
         finally:runner.gateway.db.close()
-    print('PASS threaded review without SQLite access; OFF chart privacy/zero intents; six real review paths; receipt-backed fake BUY+STOP')
+    print('PASS',mode,'threaded review; OFF privacy/zero intents; all configured review paths; receipt-backed fake BUY+STOP')
 
-if __name__=='__main__':asyncio.run(check())
+if __name__=='__main__':
+    asyncio.run(check())
+    asyncio.run(check('legacy_ensemble'))

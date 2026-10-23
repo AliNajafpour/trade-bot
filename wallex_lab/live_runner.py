@@ -5,7 +5,10 @@ from datetime import datetime, timezone
 from decimal import Decimal
 import hashlib
 import json
+import os
 from pathlib import Path
+import signal
+import sys
 import time
 import traceback
 
@@ -32,6 +35,15 @@ There is no timed forced exit. Respect supplied execution costs, cash and risk l
 When mode is public_chart_analysis, account state is deliberately absent: enter means a
 market candidate for subsequent private risk checks, never an instruction to place an order.
 Give a concise Persian reason and risk_multiplier in [0,1]. No tools or extra fields."""
+
+LEGACY_PROMPT = CHART_PROMPT.replace(
+    'This asset has NO trained survival forecast:',
+    'The technical evidence is the supplied genuine Kronos and Chronos-2 forecasts plus the ten-strategy bank. '
+    'Their closing-price distributions and rule states are advisory, not calibrated TP-first probabilities. '
+    'Use their numeric outputs and actual triggered setups when judging the chart. '
+    'Rule-derived TP/SL proposals are context; the executable policy remains fixed +/-2%. '
+    'The supplied admission explains which forecast or setup cleared entry costs. '
+    'This route has NO trained survival forecast:')
 
 
 def stamp():
@@ -93,6 +105,14 @@ def validate_activation(config, binding):
     if (not isinstance(charts,list) or len(charts)!=len(set(charts))
             or any(s not in symbols or s in ('BTCUSDT','ETHUSDT','SOLUSDT','SUSDT') for s in charts)):
         raise ValueError('Chart-only analysis must use the explicitly selected additional markets')
+    assigned=set(charts)
+    for name in ('probability_symbols','legacy_technical_symbols'):
+        selected=config.get(name,[])
+        if (not isinstance(selected,list) or len(selected)!=len(set(selected))
+                or any(s not in symbols or s in ('BTCUSDT','ETHUSDT','SOLUSDT','SUSDT') for s in selected)
+                or assigned.intersection(selected)):
+            raise ValueError('Additional technical routes must be disjoint reviewed markets')
+        assigned.update(selected)
 
 
 class ArmedExchange:
@@ -222,6 +242,7 @@ class LiveRunner:
                           execution_ready=False, positions=[], recent_orders=[], last_scan=None)
         self.gateway = None
         self.predictor = None
+        self.probability_predictor = None
         self.monitor_ok = False
         self.chart_rows = {}
         self.chart_due = {}
@@ -322,21 +343,27 @@ class LiveRunner:
         import pandas as pd
         import torch
         from .barrier_survival import SurvivalPredictor
-        if self.predictor is None:
+        additional = symbol in self.config.get('probability_symbols',[])
+        predictor = self.probability_predictor if additional else self.predictor
+        if predictor is None:
             torch.set_num_threads(1)
-            model = Path(self.config['model'])
-            expected = self.config.get('model_metadata_sha256')
+            model = Path(self.config['probability_model'] if additional else self.config['model'])
+            if not model.is_absolute(): model = Path(__file__).resolve().parents[1]/model
+            expected = self.config.get('probability_model_metadata_sha256' if additional else 'model_metadata_sha256')
             if expected and hashlib.sha256((model / 'model.json').read_bytes()).hexdigest() != expected:
                 raise ValueError('Weekly model identity mismatch')
-            self.predictor = SurvivalPredictor.load(model)
+            predictor = SurvivalPredictor.load(model)
+            if additional: self.probability_predictor = predictor
+            else: self.predictor = predictor
         decision = pd.Timestamp.now(tz='UTC').floor('min')
-        frame, provenance = self.history(symbol, decision)
+        frame, provenance = self.history(symbol, decision, predictor.metadata['minimum_history_minutes'])
         ask = normalize(snapshot['quotes'][symbol]['ask'], snapshot['markets'][symbol]['tickSize'])
         precision = snapshot['markets'][symbol]['tickSize']
         tp = position['target_price'] if position else normalize(number(ask) * Decimal('1.02'), precision)
         sl = position['stop_price'] if position else normalize(number(ask) * Decimal('.98'), precision)
-        prediction = self.predictor.predict(frame, symbol, decision, float(frame.close.iloc[-1]), tp=float(tp), sl=float(sl))
+        prediction = predictor.predict(frame, symbol, decision, float(frame.close.iloc[-1]), tp=float(tp), sl=float(sl))
         prediction.update(anchor_close=float(frame.close.iloc[-1]), execution_ask=float(ask),
+                          technical_mode='barrier_pretrained8' if additional else 'weekly_late',
                           probability_semantics='Trade-price first touch; not guaranteed executable fill')
         prediction['forecasts'] = [f for f in prediction['forecasts'] if f['horizon_minutes'] == 1440]
         if len(prediction['forecasts']) != 1:
@@ -352,7 +379,7 @@ class LiveRunner:
         import pandas as pd
         import numpy as np
         decision = pd.Timestamp.now(tz='UTC').floor('min')
-        frame, provenance = self.history(symbol, decision, 2880)
+        frame, provenance = self.history(symbol, decision, 10080 if symbol in self.config.get('legacy_technical_symbols',[]) else 2880)
         precision = snapshot['markets'][symbol]['tickSize']
         ask = normalize(snapshot['quotes'][symbol]['ask'], precision)
         summary = {}
@@ -382,12 +409,80 @@ class LiveRunner:
             reasons.append('target_does_not_clear_authenticated_fees')
         return dict(eligible=not reasons,reasons=reasons,technical_mode='llm_chart')
 
+    async def legacy_forecast(self,symbol,frame,snapshot):
+        directory=self.root/'legacy-technical'/symbol/str(time.time_ns())
+        directory.mkdir(parents=True)
+        history=directory/'history.csv'
+        await asyncio.to_thread(frame.to_csv,history,index=False)
+        root=Path(__file__).resolve().parents[1]
+        model_dirs={key:str((root/Path(value)).resolve()) for key,value in self.config['legacy_model_dirs'].items()}
+        request=directory/'request.json';output=directory/'result.json'
+        import pandas as pd
+        cutoff=pd.Timestamp(frame.timestamp.iloc[-1])+pd.Timedelta(minutes=1)
+        save_json(request,dict(symbol=symbol,history_path=str(history),asof=stamp(),decision_at=cutoff.isoformat(),
+            quote=snapshot['quotes'][symbol],model_dirs=model_dirs,run_dir=str(directory/'inference')))
+        environment=dict(os.environ,OMP_NUM_THREADS='1',MKL_NUM_THREADS='1',OPENBLAS_NUM_THREADS='1',
+            NUMEXPR_NUM_THREADS='1',HF_HUB_OFFLINE='1',TRANSFORMERS_OFFLINE='1',TOKENIZERS_PARALLELISM='false')
+        options=dict(start_new_session=True) if os.name!='nt' else dict(creationflags=__import__('subprocess').CREATE_NO_WINDOW)
+        process=await asyncio.create_subprocess_exec(sys.executable,'-B','-m','wallex_lab.legacy_technical',
+            '--request',str(request),'--output',str(output),cwd=root,env=environment,
+            stdout=asyncio.subprocess.PIPE,stderr=asyncio.subprocess.PIPE,**options)
+        try:
+            stdout,stderr=await asyncio.wait_for(process.communicate(),timeout=min(300,max(30,float(self.config.get('legacy_timeout_seconds',180)))))
+            (directory/'worker.log').write_bytes((stdout+stderr)[-8192:])
+            if process.returncode!=0 or not output.exists():raise ValueError('Legacy technical worker did not complete')
+            result=json.loads(output.read_text('utf-8'))
+            if (result.get('status')!='ok' or result.get('symbol')!=symbol
+                    or any(result.get('models',{}).get(k,{}).get('status')!='ok' for k in ('kronos','chronos2'))):
+                raise ValueError('Both legacy forecasting models must return valid results')
+            return result
+        finally:
+            if process.returncode is None:
+                if os.name!='nt':os.killpg(process.pid,signal.SIGTERM)
+                else:
+                    cleanup=await asyncio.create_subprocess_exec('taskkill','/PID',str(process.pid),'/T','/F',
+                        stdout=asyncio.subprocess.DEVNULL,stderr=asyncio.subprocess.DEVNULL,
+                        creationflags=__import__('subprocess').CREATE_NO_WINDOW)
+                    await cleanup.wait()
+                try:await asyncio.wait_for(process.wait(),timeout=5)
+                except asyncio.TimeoutError:
+                    if os.name!='nt':os.killpg(process.pid,signal.SIGKILL)
+                    else:process.kill()
+                    await process.wait()
+
+    def legacy_admission(self,symbol,prediction,snapshot):
+        import pandas as pd
+        gates=self.chart_admission(symbol,prediction,snapshot)
+        technical=prediction['legacy_technical'];quote=snapshot['quotes'][symbol]
+        ask=number(quote['ask'],True);fee=number(snapshot['fees'][symbol]['takerFeeRate'])
+        signals=[]
+        for name in ('kronos','chronos2'):
+            model=technical['models'][name]
+            origin=pd.Timestamp(model['history']['forecast_origin_at'])
+            now=pd.Timestamp(quote['available_at'])
+            future=[number(value,True) for i,value in enumerate(model['close_quantiles_by_step']['q50'])
+                if origin+pd.Timedelta(hours=i+1)>now]
+            if not future:continue
+            close=max(future)
+            net=close*(1-fee)/(ask*(1+fee))-1
+            if net>0:signals.append(dict(source=name,net_central_upside=float(net)))
+        rules=technical.get('rules',{})
+        if rules.get('status')!='ok' or not rules.get('strategies'):
+            gates['reasons'].append('strategy_bank_unavailable')
+        for candidate in rules.get('candidates',[]):
+            net=number(candidate['target_price'],True)*(1-fee)/(ask*(1+fee))-1
+            if net>0:signals.append(dict(source='strategy_bank',net_target_upside=float(net),
+                strategies=candidate.get('strategy_sources',[])))
+        if not signals:gates['reasons'].append('no_legacy_forecast_or_setup_clears_costs')
+        gates.update(eligible=not gates['reasons'],technical_mode='legacy_ensemble',opportunities=signals)
+        return gates
+
     def review(self, symbol, frame, provenance, prediction, decision, snapshot, position, gates,
                managed_positions=None, public_only=False):
         from .council_charts import render_chart
         from .providers import run_one
         from .survival_news import PROMPT, PRESET, manager_schema
-        chart_mode = prediction.get('technical_mode') == 'llm_chart'
+        chart_mode = prediction.get('technical_mode') in ('llm_chart','legacy_ensemble')
         public_only = chart_mode and (public_only or not self.exchange.allow_writes)
         if not chart_mode and not self.exchange.allow_writes:
             raise PermissionError('Execution was disabled before manager inference')
@@ -412,9 +507,11 @@ class LiveRunner:
                       reports=reports, history_provenance=provenance, admission=gates)
         # Only replace the account mode sentence; retain the reviewed gates and no-tool contract.
         prompt = PROMPT.replace('one isolated SPOT PAPER experiment', 'one user-armed cash-funded REAL SPOT account')
-        if prediction.get('technical_mode') == 'llm_chart':
-            prompt = CHART_PROMPT
-            packet['preset'] = dict(tp_fraction=.02,sl_fraction=.02,timed_exit=False,technical_mode='llm_chart')
+        if prediction.get('technical_mode')=='barrier_pretrained8':
+            prompt = prompt.replace('Weekly/late survival','Barrier Survival pretrained-8 survival')
+        if chart_mode:
+            prompt = LEGACY_PROMPT if prediction['technical_mode']=='legacy_ensemble' else CHART_PROMPT
+            packet['preset'] = dict(tp_fraction=.02,sl_fraction=.02,timed_exit=False,technical_mode=prediction['technical_mode'])
             packet['entry_policy'] = dict(reference_ask=snapshot['quotes'][symbol]['ask'],
                 max_reprice_bps=10,tp_fraction=.02,sl_fraction=.02)
             if public_only:
@@ -431,7 +528,7 @@ class LiveRunner:
     async def enter(self, symbol, response, reviewed_reports, row):
         config = self.arm_check()
         snapshot = await self.exchange.snapshot()
-        if row.get('prediction',{}).get('technical_mode') == 'llm_chart':
+        if row.get('prediction',{}).get('technical_mode') in ('llm_chart','legacy_ensemble'):
             prediction = dict(row['prediction'])
             receipt_path = Path(row['manager_receipt']).resolve()
             current_reports = self.reports()
@@ -443,7 +540,7 @@ class LiveRunner:
             prediction.update(execution_ask=float(ask),tp=float(normalize(number(ask)*Decimal('1.02'),precision)),
                 sl=float(normalize(number(ask)*Decimal('.98'),precision)))
             quantity = size_entry(config,snapshot,self.gateway.positions(),symbol,prediction['sl'],multiplier)
-            evidence = dict(technical_mode='llm_chart',decision_at=stamp(),execution_ask=ask,
+            evidence = dict(technical_mode=prediction['technical_mode'],decision_at=stamp(),execution_ask=ask,
                 tp=prediction['tp'],sl=prediction['sl'],manager_receipt_path=str(receipt_path),
                 manager_receipt_sha256=hashlib.sha256(receipt_path.read_bytes()).hexdigest())
             key = self.gateway.prepare_entry(f'chart-live-{evidence["manager_receipt_sha256"][:32]}-{symbol}',symbol,
@@ -494,7 +591,7 @@ class LiveRunner:
             if armed != last_armed:
                 self.chart_due.clear()
                 last_armed = armed
-            for symbol in self.config.get('llm_chart_symbols',[]):
+            for symbol in self.config.get('legacy_technical_symbols',[]) + self.config.get('llm_chart_symbols',[]):
                 if time.monotonic() < self.chart_due.get(symbol,0):
                     continue
                 row = self.chart_rows.setdefault(symbol,dict(symbol=symbol))
@@ -510,13 +607,20 @@ class LiveRunner:
                     snapshot = await self.exchange.snapshot()
                     if not self.exchange.allow_writes:
                         position, owned = None, []
+                    if symbol in self.config.get('legacy_technical_symbols',[]):
+                        row['status']='forecasting_legacy_models'
+                        technical=await self.legacy_forecast(symbol,frame,snapshot)
+                        prediction.update(technical_mode='legacy_ensemble',legacy_technical=technical,
+                            probability_semantics='Kronos/Chronos-2 closing forecasts and strategy setups; no calibrated TP-first probability')
+                        snapshot=await self.exchange.snapshot()
+                        if not self.exchange.allow_writes:position,owned=None,[]
                     precision = snapshot['markets'][symbol]['tickSize']
                     ask = normalize(snapshot['quotes'][symbol]['ask'],precision)
                     if not position:
                         prediction.update(entry=float(ask),execution_ask=float(ask),
                             tp=float(normalize(number(ask)*Decimal('1.02'),precision)),
                             sl=float(normalize(number(ask)*Decimal('.98'),precision)))
-                    gates = self.chart_admission(symbol,prediction,snapshot)
+                    gates = self.legacy_admission(symbol,prediction,snapshot) if prediction['technical_mode']=='legacy_ensemble' else self.chart_admission(symbol,prediction,snapshot)
                     row.update(prediction=prediction,history_provenance=provenance,admission=gates)
                     if not position and not gates['eligible']:
                         row['status'] = 'execution_cost_blocked'
@@ -546,14 +650,15 @@ class LiveRunner:
 
     async def scan(self, snapshot):
         from .survival_news import admission
-        result = dict(started_at=stamp(), completed=False, results=[])
+        slow = self.config.get('legacy_technical_symbols',[]) + self.config.get('llm_chart_symbols',[])
+        result = dict(started_at=stamp(), completed=False, results=[
+            self.chart_rows.setdefault(s,dict(symbol=s,status='queued_technical_analysis')) if s in slow
+            else dict(symbol=s,status='checking') for s in self.config['symbols']])
         self.state['last_scan'] = result
-        for symbol in self.config['symbols']:
-            if symbol in self.config.get('llm_chart_symbols',[]):
-                result['results'].append(self.chart_rows.setdefault(symbol,dict(symbol=symbol,status='queued_chart_analysis')))
+        for row in result['results']:
+            symbol=row['symbol']
+            if symbol in slow:
                 continue
-            row = dict(symbol=symbol, status='checking')
-            result['results'].append(row)
             try:
                 position = next((p for p in self.gateway.positions() if p['symbol'] == symbol), None) if self.gateway else None
                 frame, provenance, prediction, decision = await asyncio.to_thread(self.forecast, symbol, snapshot, position)
@@ -595,7 +700,7 @@ class LiveRunner:
                 try:
                     self.refresh_config()
                     async with WallexMCP(self.root / 'exchange', self.config['symbols'], allow_writes=True,
-                                         optional_symbols=self.config.get('llm_chart_symbols',[])) as raw:
+                                         optional_symbols=[s for s in self.config['symbols'] if s not in ('BTCUSDT','ETHUSDT','SOLUSDT','SUSDT')]) as raw:
                         self.exchange = ArmedExchange(raw, self.config_path)
                         snapshot = await self.exchange.snapshot()
                         self.state.update(account_binding=snapshot['account_binding'], account=dict(observed_at=snapshot['observed_at'], balances=snapshot['balances'], fees=snapshot['fees']))

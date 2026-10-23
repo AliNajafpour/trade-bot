@@ -176,8 +176,12 @@ class Gateway:
 
     def _entry_evidence(self,payload,tp,sl,evidence,risk_multiplier,market):
         symbol=payload['symbol']
-        if symbol in self.config.get('llm_chart_symbols',[]) and symbol in DEFAULTS['symbols'] and symbol not in ('BTCUSDT','ETHUSDT','SOLUSDT','SUSDT'):
-            if evidence.get('technical_mode')!='llm_chart': raise ValueError('Configured chart market requires manager approval')
+        technical_mode=None
+        if symbol in DEFAULTS['symbols'] and symbol not in ('BTCUSDT','ETHUSDT','SOLUSDT','SUSDT') and symbol not in self.config.get('probability_symbols',[]):
+            if symbol in self.config.get('legacy_technical_symbols',[]): technical_mode='legacy_ensemble'
+            elif symbol in self.config.get('llm_chart_symbols',[]): technical_mode='llm_chart'
+        if technical_mode:
+            if evidence.get('technical_mode')!=technical_mode: raise ValueError('Configured technical market requires its reviewed analysis mode')
             path=Path(evidence['manager_receipt_path']).resolve()
             if not path.is_relative_to((self.root/'reviews').resolve()) or path.name!='receipt.json':
                 raise ValueError('Manager receipt must be stored in this execution ledger')
@@ -192,8 +196,18 @@ class Gateway:
                 if hashlib.sha256(data).hexdigest()!=receipt['files_sha256'][name]: raise ValueError('Manager evidence integrity failed')
                 if name=='packet.json': packet=json.loads(data)
                 elif json.loads(data)!=response: raise ValueError('Manager validated response changed')
-            if packet.get('mode')!='real_spot_user_armed' or packet.get('paper_only') is not False or packet['prediction'].get('technical_mode')!='llm_chart':
+            if packet.get('mode')!='real_spot_user_armed' or packet.get('paper_only') is not False or packet['prediction'].get('technical_mode')!=technical_mode:
                 raise ValueError('Public or model-only analysis cannot authorize a chart entry')
+            if technical_mode=='legacy_ensemble':
+                legacy=packet['prediction'].get('legacy_technical')
+                if not isinstance(legacy,dict) or legacy.get('status')!='ok': raise ValueError('Legacy technical analysis failed')
+                models=legacy.get('models');rules=legacy.get('rules')
+                if not isinstance(models,dict) or any(not isinstance(models.get(name),dict) or models[name].get('status')!='ok' for name in ('kronos','chronos2')):
+                    raise ValueError('Both legacy forecasting models must succeed')
+                if not isinstance(rules,dict) or rules.get('status')!='ok' or not isinstance(rules.get('strategies'),list) or not rules['strategies']:
+                    raise ValueError('Legacy strategy bank must succeed with nonempty strategies')
+                admission=packet.get('admission')
+                if not isinstance(admission,dict) or admission.get('eligible') is not True: raise ValueError('Legacy technical candidate is not eligible')
             if not 0<=age(receipt['ended_utc'])<=self.config['max_signal_age_seconds']: raise ValueError('Manager review expired')
             if packet['symbol']!=symbol: raise ValueError('Manager reviewed another symbol')
             policy=packet.get('entry_policy')

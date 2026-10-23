@@ -8,7 +8,16 @@
   "source": "/data/source",
   "model": "models/barrier-survival/late",
   "symbols": ["BTCUSDT", "ETHUSDT", "SOLUSDT", "SUSDT", "XRPUSDT", "DOGEUSDT", "ADAUSDT", "BNBUSDT", "TRXUSDT", "LTCUSDT"],
-  "llm_chart_symbols": ["XRPUSDT", "DOGEUSDT", "ADAUSDT", "BNBUSDT", "TRXUSDT", "LTCUSDT"],
+  "llm_chart_symbols": [],
+  "probability_symbols": ["XRPUSDT", "DOGEUSDT", "BNBUSDT"],
+  "probability_model": "models/barrier-survival/pretrained8",
+  "probability_model_metadata_sha256": "5694bccfa42fddde0c9b9e40b533f10db76f39ad4aace7fa30f8a183c38031b6",
+  "legacy_technical_symbols": ["ADAUSDT", "TRXUSDT", "LTCUSDT"],
+  "legacy_model_dirs": {
+    "kronos": "/app/models/kronos-small-901c26c",
+    "tokenizer": "/app/models/kronos-tokenizer-base-0e01173",
+    "chronos2": "/app/models/chronos-2-29ec376"
+  },
   "history_mode": "kucoin_proxy",
   "proxy_venues": {"SOLUSDT": "mexc", "XRPUSDT": "mexc", "LTCUSDT": "mexc"},
   "max_position_fraction": 0.15,
@@ -22,5 +31,6 @@
   "scan_seconds": 120,
   "manager_scan_seconds": 600,
   "monitor_seconds": 5,
-  "manager_timeout_seconds": 90
+  "manager_timeout_seconds": 90,
+  "legacy_timeout_seconds": 180
 }

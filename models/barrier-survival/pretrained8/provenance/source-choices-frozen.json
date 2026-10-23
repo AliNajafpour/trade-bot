@@ -1,0 +1,8 @@
+{
+  "protocol_sha256": "74a824195789c1556fda9f20107f7d7b719f65913864f20877406cae9e2692db",
+  "files": {
+    "D:\\ALI\\Programming-AI\\compitions-challenges\\starcoach\\wallex\\runs\\barrier-vnext-20261023\\early\\pretrained\\seed-42\\fit.json": "d53f4762ccd60ae499442b7cdbcf9981aaddb089948f3b6f86161044cec3abf5",
+    "D:\\ALI\\Programming-AI\\compitions-challenges\\starcoach\\wallex\\runs\\barrier-vnext-20261023\\early\\pretrained\\seed-42\\best.pt": "fdc447607006f8c72b25df36e94b2f00bcd85eb367dfd4758cbb60505d6c5042",
+    "D:\\ALI\\Programming-AI\\compitions-challenges\\starcoach\\wallex\\runs\\barrier-vnext-20261023\\early\\pretrained\\seed-42\\last.pt": "4327e8835b8951990ebc66727d665bf368edc32f75e51885915fa907766388d9"
+  }
+}

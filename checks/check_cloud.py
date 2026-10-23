@@ -50,3 +50,25 @@ if len(template['symbols'])==10:
         bootstrap(d)
         assert json.loads(path.read_text())==upgraded,'An operator override must not be undone on restart'
 print('PASS disabled bootstrap, state persistence, owner-preserving universe upgrade and emergency-off override')
+
+with TemporaryDirectory() as d,patch.dict('os.environ',{'WALLEX_FORCE_DISABLE':'false'}):
+    path,_=bootstrap(d)
+    config=json.loads(path.read_text())
+    config.update(llm_chart_symbols=template['symbols'][4:],enabled=True,
+        account_binding='owner',max_capital_usdt=21,stop_capabilities_verified=True)
+    for key in ('probability_symbols','probability_model','probability_model_metadata_sha256',
+            'legacy_technical_symbols','legacy_model_dirs','legacy_timeout_seconds'):
+        config.pop(key,None)
+    path.write_text(json.dumps(config));bootstrap(d)
+    assert json.loads(path.read_text())==config,'ON state must not change technical methods'
+    config['enabled']=False;path.write_text(json.dumps(config));bootstrap(d)
+    changed=json.loads(path.read_text())
+    for key in ('probability_symbols','legacy_technical_symbols','legacy_model_dirs'):
+        assert changed[key]==template[key]
+    assert changed['technical_split_version']==1 and changed['llm_chart_symbols']==[]
+    for key in ('account_binding','max_capital_usdt','stop_capabilities_verified'):
+        assert changed[key]==config[key]
+    bootstrap(d);assert json.loads(path.read_text())==changed
+    changed['legacy_technical_symbols']=[];path.write_text(json.dumps(changed));bootstrap(d)
+    assert json.loads(path.read_text())==changed,'Preserve later operator changes'
+print('PASS disabled-only 3+3 migration, account preservation and restart idempotence')
