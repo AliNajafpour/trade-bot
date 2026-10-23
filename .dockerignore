@@ -1,5 +1,8 @@
 *
 !requirements-portable.txt
+!requirements.txt
+!requirements-live.txt
+!run.py
 !wallex_lab/
 !wallex_lab/**
 !config/
@@ -7,6 +10,12 @@
 !docs/
 !docs/fee-evidence/
 !docs/fee-evidence/**
+!models/
+!models/barrier-survival/
+!models/barrier-survival/late/
+!models/barrier-survival/late/**
+!third_party/
+!third_party/**
 **/__pycache__
 **/*.pyc
 **/.env*

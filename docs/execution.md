@@ -35,7 +35,7 @@ Initial planned limits are 15% allocation per position, 0.5% account stop risk p
 
 Native stop acceptance, exact returned trigger fields and actual triggering have not been tested with a real order. Stop-limits can remain unfilled through a price gap. There is no asserted atomic OCO bracket; target exits need a running actor. A failed API or local process can interrupt target monitoring and protective recovery.
 
-Both enabled configuration and an explicitly write-enabled transport are required for mutation; the current config satisfies neither activation path. The optional real monitor is not registered with a startup supervisor or connected to the paper manager's decisions. It must receive fresh real-account decisions, not replay a virtual account's trades.
+Both enabled configuration and an explicitly write-enabled transport are required for mutation. The default configs remain disabled. The separate `live_runner.py` connects the Weekly/late predictor and manager to the real gateway; `cloud.py` supervises it alongside public reporting and the authenticated control dashboard. It receives fresh real-account decisions and never replays a virtual account's trades. The protection loop retires never-submitted BUY intents instead of dispatching them after restart; uncertain submissions and protective orders retain their reconciliation state. See [deployment and user activation](deployment.md).
 
 The focused offline boundary check uses a fake exchange:
 

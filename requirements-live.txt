@@ -1,0 +1,10 @@
+# Weekly/late inference, authenticated MCP, charts and compatible LLM API.
+# Install CPU Torch separately with the official CPU wheel index in Dockerfile.live.
+numpy==1.26.4
+pandas==2.3.3
+mcp==1.30.0
+httpx==0.28.1
+python-dotenv==1.2.4
+requests==2.34.2
+matplotlib==3.11.2
+Pillow==13.0.0

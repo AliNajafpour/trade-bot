@@ -1,0 +1,18 @@
+FROM python:3.11-slim-bookworm
+WORKDIR /app
+ENV PYTHONUNBUFFERED=1 PYTHONDONTWRITEBYTECODE=1 \
+    OMP_NUM_THREADS=1 MKL_NUM_THREADS=1 OPENBLAS_NUM_THREADS=1 NUMEXPR_NUM_THREADS=1 \
+    WALLEX_DATA_DIR=/data MPLCONFIGDIR=/data/cache/matplotlib HF_HOME=/data/cache/huggingface \
+    LLM_PROVIDER=openai_compatible LANGSMITH_TRACING=false PORT=8080
+COPY requirements-live.txt ./
+RUN pip install --no-cache-dir torch==2.7.1 --index-url https://download.pytorch.org/whl/cpu \
+    && pip install --no-cache-dir -r requirements-live.txt
+COPY run.py ./
+COPY wallex_lab ./wallex_lab
+COPY config ./config
+COPY models/barrier-survival/late ./models/barrier-survival/late
+COPY docs/fee-evidence ./docs/fee-evidence
+COPY third_party ./third_party
+RUN python run.py verify
+EXPOSE 8080
+CMD ["python", "-m", "wallex_lab.cloud"]
