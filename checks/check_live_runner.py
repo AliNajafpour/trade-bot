@@ -10,7 +10,22 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 from check_live_execution import Exchange, snapshot, prepare
 from wallex_lab.live_execution import DEFAULTS
 from wallex_lab.live_runner import ArmedExchange, LiveGateway, LiveRunner, size_entry, validate_activation
-from wallex_lab.live_runner import stamp
+from wallex_lab.live_runner import stamp, error_details
+
+
+def check_diagnostics():
+    try:
+        raise ValueError('history_does_not_end_at_decision')
+    except ValueError as error:
+        details = error_details(error)
+    assert details['error_code'] == 'history_tail_pending'
+    assert details['error_source'].startswith('check_live_runner.py:')
+    assert details['reason'] and details['error_type'] == 'ValueError'
+    try:
+        raise ValueError('Bearer private-credential-must-never-leak')
+    except ValueError as error:
+        details = error_details(error)
+    assert 'private-credential' not in json.dumps(details)
 
 
 async def check():
@@ -41,6 +56,13 @@ async def check():
             await runner.scan(snapshot())
             assert runner.state['last_scan']['results'][0]['status'] == 'eligible_disabled'
             assert not raw.writes and runner.gateway.db.execute('SELECT count(*) FROM orders').fetchone()[0] == 0
+            working_forecast = runner.forecast
+            runner.forecast = lambda *_: (_ for _ in ()).throw(ValueError('Wallex completed candle is still being published; retrying this decision'))
+            await runner.scan(snapshot())
+            delayed = runner.state['last_scan']['results'][0]
+            assert delayed['status'] == 'data_pending' and delayed['error_code'] == 'wallex_anchor_pending'
+            assert not raw.writes
+            runner.forecast = working_forecast
             for operation in (guarded.place({}), guarded.cancel('anything')):
                 try: await operation
                 except PermissionError: pass
@@ -170,4 +192,5 @@ async def check():
 
 
 if __name__ == '__main__':
+    check_diagnostics()
     asyncio.run(check())

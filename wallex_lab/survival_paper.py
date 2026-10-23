@@ -136,7 +136,10 @@ class Runner:
         anchor = native.loc[native.timestamp==decision-pd.Timedelta(minutes=1)]
         receipts = []
         path = cached if cached.exists() else shared
-        if len(anchor)!=1:
+        for attempt in range(3):
+            if len(anchor)==1: break
+            # Native responses can precede candle publication and are cached for 15 seconds.
+            if attempt: time.sleep(8)
             query = urlencode(dict(symbol=compact,resolution='1',**{'from':int(decision.timestamp())-300,'to':int(decision.timestamp())-1}))
             raw,receipt = fetch_public('https://api.wallex.ir/v1/udf/history?'+query,cached.parent,'wallex_anchor',8)
             if receipt.get('status')!=200: raise ValueError('Wallex completed candle temporarily unavailable: HTTP '+str(receipt.get('status')))

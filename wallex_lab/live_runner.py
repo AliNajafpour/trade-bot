@@ -7,6 +7,7 @@ import hashlib
 import json
 from pathlib import Path
 import time
+import traceback
 
 from .context import save_json
 from .live_execution import DEFAULTS, Gateway, WallexMCP, normalize, number
@@ -15,6 +16,30 @@ from .locking import exclusive
 
 def stamp():
     return datetime.now(timezone.utc).isoformat()
+
+
+def error_details(error):
+    """Expose known local failure codes, never arbitrary provider/exchange error text."""
+    frames = traceback.extract_tb(error.__traceback__)
+    source = frames[-1] if frames else None
+    location = f'{Path(source.filename).name}:{source.lineno}:{source.name}' if source else 'unknown'
+    text = str(error)
+    known = {
+        'history_does_not_end_at_decision': ('history_tail_pending', 'آخرین کندل کامل هنوز از منبع تاریخچه دریافت نشده است'),
+        'Wallex completed candle is still being published; retrying this decision':
+            ('wallex_anchor_pending', 'کندل هم‌زمان والکس هنوز منتشر نشده است'),
+        'Manager did not return a validated decision': ('manager_response_invalid', 'پاسخ معتبر مدیر دریافت نشد'),
+    }
+    code, reason = known.get(text, ('processing_failed', 'خطای پردازش؛ محل شکست: ' + location))
+    if text.startswith('insufficient_history: '):
+        code, reason = 'history_insufficient', 'تعداد کندل‌های کامل برای ورودی مدل کافی نیست'
+    elif text.startswith('history_gap: '):
+        code, reason = 'history_gap', 'در ورودی مدل دقیقهٔ مفقود وجود دارد'
+    elif text.startswith(('kucoin:', 'mexc:')):
+        code, reason = 'reference_unavailable', 'دریافت تاریخچه از منبع مرجع موقتاً ناموفق است'
+    elif text.startswith('Wallex completed candle temporarily unavailable: HTTP '):
+        code, reason = 'wallex_anchor_unavailable', 'دریافت کندل مبنای والکس موقتاً ناموفق است'
+    return dict(error_type=type(error).__name__, error_code=code, error_source=location, reason=reason)
 
 
 def read_config(path):
@@ -387,7 +412,9 @@ class LiveRunner:
                 elif not position and response['action'] == 'enter':
                     await self.enter(symbol, response, reports, row)
             except Exception as error:
-                row.update(status='blocked', error_type=type(error).__name__)
+                details = error_details(error)
+                pending = details['error_code'] in ('wallex_anchor_pending', 'history_tail_pending')
+                row.update(status='data_pending' if pending else 'blocked', **details)
             self.publish()
         result.update(completed=True, finished_at=stamp())
         self.publish()
@@ -422,7 +449,8 @@ class LiveRunner:
                             self.publish()
                             if time.monotonic() >= next_scan:
                                 await self.scan(snapshot)
-                                next_scan = time.monotonic() + max(60, float(self.config.get('scan_seconds', 60)))
+                                pending = any(r['status'] == 'data_pending' for r in self.state['last_scan']['results'])
+                                next_scan = time.monotonic() + (15 if pending else max(60, float(self.config.get('scan_seconds', 60))))
                             await asyncio.sleep(5)
                 except Exception as error:
                     self.state.update(status='blocked', enabled=False, execution_ready=False, error_type=type(error).__name__)
