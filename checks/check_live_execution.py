@@ -4,12 +4,14 @@ from copy import deepcopy
 from contextlib import ExitStack
 from decimal import Decimal
 from datetime import datetime, timezone
+import hashlib
+import json
 from pathlib import Path
 import sys
 from tempfile import TemporaryDirectory
 
 sys.path.insert(0,str(Path(__file__).resolve().parents[1]))
-from wallex_lab.live_execution import Gateway, OrderNotFound, normalize, DEFAULTS
+from wallex_lab.live_execution import Gateway, OrderNotFound, WallexMCP, normalize, DEFAULTS
 
 
 def stamp(): return datetime.now(timezone.utc).isoformat()
@@ -59,7 +61,245 @@ def prepare(gateway,key='entry'):
         dict(decision_at=stamp(),horizon_minutes=1440,p_tp_first=.6,p_sl_first=.25,p_no_touch=.15,execution_ask=100.,tp=102.,sl=98.),risk_multiplier=1.)
 
 
+async def check_snapshot():
+    class Fixture(WallexMCP):
+        def __init__(self,optional_symbols=()):
+            super().__init__(Path('unused'),DEFAULTS['symbols'],optional_symbols=optional_symbols)
+            self.binding='fixture';self.active=0;self.peak=0;self.pages=[];self.failure=None
+            original=snapshot()
+            self.markets={s:dict(original['markets']['BTCUSDT'],symbol=s,baseAsset=s[:-4]) for s in self.symbols}
+            self.balances={s[:-4]:dict(available='0',total='0') for s in self.symbols}
+            self.balances['USDT']=dict(available='100',total='100')
+            self.fees={s:dict(takerFeeRate='.0013',makerFeeRate='.0013') for s in self.symbols}
+            self._limits_cache=(asyncio.get_running_loop().time(),dict(success=True,result=dict(symbols=self.markets)),{})
+        async def _call(self,name,args):
+            assert name in self.READS, 'Snapshot attempted an exchange mutation'
+            self.active+=1;self.peak=max(self.peak,self.active)
+            try:
+                if self.failure=='slow-LTCUSDT' and args.get('symbol')=='LTCUSDT': await asyncio.sleep(30)
+                await asyncio.sleep(10 if self.failure=='timeout' else .005)
+                if name=='wallex_credit_sub_account_balances_details': result=self.balances
+                elif name=='wallex_basic_get_account_fees': result=self.fees
+                elif name=='wallex_spot_get_markets': result=dict(symbols=self.markets)
+                elif name=='wallex_spot_get_open_order':
+                    self.pages.append(args['page'])
+                    result=[dict(clientOrderId='fixture')]* (100 if args['page']==1 else 1)
+                else:
+                    if self.failure==args['symbol']: raise ValueError('One book failed')
+                    result=dict(bid=[dict(price='99.99',quantity='5')],ask=[dict(price='100',quantity='5')])
+                return dict(success=True,result=result)
+            finally: self.active-=1
+    fixture=Fixture()
+    value=await fixture.snapshot()
+    assert set(value['quotes'])==set(value['markets'])==set(value['fees'])==set(DEFAULTS['symbols'])
+    assert fixture.peak==4 and not fixture.active, 'Snapshot reads were serial or unbounded'
+    assert fixture.pages==[1,2] and len(value['open_orders'])==101, 'Open orders were truncated'
+    for failure in ('book','fee','balance','metadata','timeout'):
+        fixture=Fixture()
+        if failure=='book': fixture.failure='XRPUSDT'
+        elif failure=='fee': fixture.fees.pop('LTCUSDT')
+        elif failure=='balance': fixture.balances.pop('LTC')
+        elif failure=='metadata': fixture.markets['XRPUSDT'].pop('minQty')
+        else: fixture.failure='timeout'
+        try: await asyncio.wait_for(fixture.snapshot(),timeout=.02 if failure=='timeout' else 2)
+        except (ValueError,KeyError,TimeoutError): pass
+        else: raise AssertionError('Incomplete ten-market snapshot was accepted: '+failure)
+        assert not fixture.active, 'A failed/cancelled snapshot left reads running'
+    fixture=Fixture();fixture.failure='timeout'
+    slow=asyncio.create_task(fixture.snapshot())
+    try:
+        await asyncio.sleep(.01)
+        fixture.failure=None
+        await asyncio.wait_for(fixture.snapshot(),timeout=2)
+        assert not slow.done(), 'Protection fixture did not overlap a stalled scan snapshot'
+    finally:
+        slow.cancel()
+        await asyncio.gather(slow,return_exceptions=True)
+    assert not fixture.active, 'Stalled scan cleanup left reads running'
+    try: Fixture(optional_symbols=['BTCUSDT'])
+    except ValueError: pass
+    else: raise AssertionError('An original market could be optional')
+    for failure in ('book','empty-book','fee','balance','metadata','slow'):
+        fixture=Fixture(optional_symbols=['LTCUSDT'])
+        if failure=='book': fixture.failure='LTCUSDT'
+        elif failure=='empty-book':
+            original_call=fixture._call
+            async def empty_book(name,args):
+                if name=='wallex_basic_get_market_depth' and args['symbol']=='LTCUSDT': return dict(result=dict(bid=[],ask=[]))
+                return await original_call(name,args)
+            fixture._call=empty_book
+        elif failure=='fee': fixture.fees.pop('LTCUSDT')
+        elif failure=='balance': fixture.balances.pop('LTC')
+        elif failure=='metadata': fixture.markets['LTCUSDT'].pop('minQty')
+        else: fixture.failure='slow-LTCUSDT'
+        degraded=await fixture.snapshot()
+        assert set(degraded['market_errors'])=={'LTCUSDT'}
+        assert degraded['market_errors']['LTCUSDT']['error_code']=='market_unavailable'
+        for field in ('quotes','markets','fees'):
+            assert set(degraded[field])==set(DEFAULTS['symbols'])-{'LTCUSDT'}
+        assert not fixture.active
+    for missing in ('BTCUSDT','USDT'):
+        fixture=Fixture(optional_symbols=['LTCUSDT'])
+        if missing=='BTCUSDT': fixture.fees.pop(missing)
+        else: fixture.balances.pop(missing)
+        try: await fixture.snapshot()
+        except (ValueError,KeyError): pass
+        else: raise AssertionError('Optional markets hid missing mandatory data')
+    await check_degraded_protection(degraded)
+
+
+async def check_degraded_protection(degraded):
+    with TemporaryDirectory() as temporary:
+        cfg=dict(DEFAULTS,enabled=True,account_binding='fixture',stop_capabilities_verified=True)
+        raw=Exchange();gateway=Gateway(Path(temporary),cfg,raw)
+        original=raw.snapshot
+        async def unavailable_ltc():
+            value=deepcopy(degraded)
+            value['observed_at']=stamp()
+            for quote in value['quotes'].values(): quote['available_at']=stamp()
+            value['balances']['BTC']=dict(available='5',total='5')
+            value['open_orders']=[deepcopy(r) for r in raw.orders.values() if r['active']]
+            return value
+        try:
+            key=prepare(gateway);await gateway.execute_entry(key)
+            stop=next(k for k,r in raw.orders.items() if r['type']=='STOP_LIMIT')
+            raw.snapshot=unavailable_ltc
+            before=len(raw.writes)
+            result=await gateway.monitor_once()
+            assert result['actions']==[dict(parent=key,action='protected')] and len(raw.writes)==before
+            # Existing venue inventory in the unavailable market must halt before a mutation.
+            with gateway.db:
+                entry=gateway.order(key);entry['payload']['symbol']='LTCUSDT'
+                gateway.db.execute('UPDATE orders SET payload=? WHERE id=?',(json.dumps(entry['payload']),key))
+            raw.orders[key]['symbol']='LTCUSDT'
+            for operation in (gateway.monitor_once(),gateway.close_position(key,'unavailable-market'),gateway.protect_entry(key)):
+                try: await operation
+                except ValueError as error: assert 'Owned or pending market data' in str(error)
+                else: raise AssertionError('Unavailable owned LTC allowed a protection/exit mutation')
+            try: prepare(gateway,'new-entry-with-missing-owned-market')
+            except ValueError as error: assert 'Owned or pending market data' in str(error)
+            else: raise AssertionError('Missing owned-market valuation allowed another entry')
+            # A partly filled entry remainder must also stay untouched when its market disappears.
+            entry=gateway.order(key);entry['payload']['quantity']='.2'
+            with gateway.db:
+                gateway.db.execute('UPDATE orders SET payload=? WHERE id=?',(json.dumps(entry['payload']),key))
+            raw.orders[key].update(origQty='.2',active=True,status='PARTIALLY_FILLED')
+            try: await gateway.protect_entry(key)
+            except ValueError as error: assert 'Owned or pending market data' in str(error)
+            else: raise AssertionError('Unavailable pending market reached cancellation')
+            assert raw.orders[key]['active'], 'Missing market cancelled a pending entry remainder'
+            assert len(raw.writes)==before and raw.orders[stop]['active'], 'Missing-market check cancelled native protection'
+        finally:
+            raw.snapshot=original
+            gateway.db.close()
+
+
+def check_llm_entries():
+    with TemporaryDirectory() as temporary:
+        root=Path(temporary)
+        cfg=dict(DEFAULTS,enabled=True,account_binding='fixture',stop_capabilities_verified=True,llm_chart_symbols=['XRPUSDT'])
+        raw=Exchange();gateway=Gateway(root,cfg,raw)
+        directory=root/'reviews'/'xrp'/'inference';directory.mkdir(parents=True)
+        packet=dict(symbol='XRPUSDT',mode='real_spot_user_armed',paper_only=False,quote=dict(ask=100),prediction=dict(technical_mode='llm_chart',tp=102,sl=98))
+        response=dict(action='enter',risk_multiplier=.5,reason='offline validated fixture')
+        path=directory/'receipt.json'
+        def proof(**changes):
+            (directory/'packet.json').write_text(json.dumps(packet))
+            (directory/'final.json').write_text(json.dumps(response))
+            receipt=dict(status='ok',response=response,ended_utc=stamp(),files_sha256={
+                name:hashlib.sha256((directory/name).read_bytes()).hexdigest() for name in ('packet.json','final.json')})
+            receipt.update(changes);path.write_text(json.dumps(receipt))
+            return dict(technical_mode='llm_chart',manager_receipt_path=str(path),manager_receipt_sha256=hashlib.sha256(path.read_bytes()).hexdigest(),
+                decision_at=stamp(),execution_ask=100,tp=102,sl=98)
+        value=snapshot()
+        value['markets']['XRPUSDT']=dict(value['markets']['BTCUSDT'],symbol='XRPUSDT',baseAsset='XRP')
+        value['quotes']['XRPUSDT']=deepcopy(value['quotes']['BTCUSDT'])
+        value['fees']['XRPUSDT']=deepcopy(value['fees']['BTCUSDT'])
+        def prepare_llm(key,evidence,multiplier=.5,symbol='XRPUSDT'):
+            return gateway.prepare_entry(key,symbol,'.1',evidence['execution_ask'],evidence['sl'],evidence['tp'],value,evidence,risk_multiplier=multiplier)
+        def reject(key,evidence,**kwargs):
+            try: prepare_llm(key,evidence,**kwargs)
+            except (ValueError,KeyError,OSError): pass
+            else: raise AssertionError('Chart entry bypassed '+key)
+        try:
+            evidence=proof();key=prepare_llm('valid',evidence)
+            assert gateway.order(key)['context']['evidence']==evidence and not raw.writes
+            for symbol in ('BTCUSDT','XRPUSDT'):
+                cfg['llm_chart_symbols']=['BTCUSDT']
+                reject('unconfigured-or-original-'+symbol,proof(),symbol=symbol)
+            low=dict(proof(),horizon_minutes=1440,p_tp_first=.55,p_sl_first=.3,p_no_touch=.15)
+            reject('original-four-strict55',low,symbol='BTCUSDT')
+            cfg['llm_chart_symbols']=['XRPUSDT']
+            reject('missing-receipt',dict(proof(),manager_receipt_path=str(directory/'absent.json')))
+            reject('wrong-receipt-hash',dict(proof(),manager_receipt_sha256='0'*64))
+            reject('stale-review',proof(ended_utc='2000-01-01T00:00:00+00:00'))
+            reject('naive-review',proof(ended_utc='2026-10-24T00:00:00'))
+            reject('failed-provider',proof(status='error'))
+            reject('risk-increase',proof(),multiplier=.6)
+            packet['mode']='public_chart_analysis'
+            reject('public-analysis-after-switch-on',proof());packet['mode']='real_spot_user_armed'
+            packet['paper_only']=True
+            reject('paper-analysis',proof());packet['paper_only']=False
+            packet['prediction']['technical_mode']='weekly'
+            reject('model-analysis-as-chart',proof());packet['prediction']['technical_mode']='llm_chart'
+            packet['entry_policy']=dict(reference_ask=100,max_reprice_bps=10,tp_fraction=.02,sl_fraction=.02)
+            def repriced(price):
+                evidence=proof()
+                evidence.update(execution_ask=str(price),tp=normalize(Decimal(str(price))*Decimal('1.02'),2),sl=normalize(Decimal(str(price))*Decimal('.98'),2))
+                value['quotes']['XRPUSDT'].update(ask=float(price),bid=float(price)-.01)
+                return evidence
+            evidence=repriced('100.05')
+            key=prepare_llm('five-bps-reprice',evidence)
+            assert gateway.order(key)['payload']['price']=='100.05'
+            assert gateway.order(key)['context']['barriers']==dict(stop_price='98.04',target_price='102.05')
+            prepare_llm('exact-ten-bps-reprice',repriced('100.10'))
+            prepare_llm('lower-five-bps-reprice',repriced('99.95'))
+            outside=repriced('100.11')
+            persisted=gateway.order(key)
+            persisted['payload']['price']='100.11'
+            persisted['context'].update(evidence=outside,barriers=dict(stop_price=outside['sl'],target_price=outside['tp']))
+            try: gateway._risk(persisted['payload'],persisted['context'],value)
+            except ValueError as error: assert 'price band' in str(error)
+            else: raise AssertionError('Dispatch bypassed manager price band')
+            reject('beyond-ten-bps',repriced('100.11'))
+            reject('below-ten-bps-band',repriced('99.89'))
+            packet['entry_policy']['max_reprice_bps']=11
+            reject('widened-price-policy',repriced('100.05'))
+            packet['entry_policy']['max_reprice_bps']=10
+            packet['entry_policy']['tp_fraction']=.03
+            reject('changed-relative-target-policy',repriced('100.05'))
+            packet['entry_policy']['tp_fraction']=.02
+            packet['entry_policy']['reference_ask']=101
+            reject('mismatched-policy-reference',repriced('100.05'))
+            packet.pop('entry_policy')
+            value['quotes']['XRPUSDT'].update(ask=100,bid=99.99)
+            packet['quote']['ask']=99
+            reject('changed-ask',proof());packet['quote']['ask']=100
+            packet['prediction']['tp']=103
+            reject('changed-target',proof());packet['prediction']['tp']=102
+            packet['symbol']='DOGEUSDT'
+            reject('changed-symbol',proof());packet['symbol']='XRPUSDT'
+            evidence=proof();(directory/'packet.json').write_text('{}')
+            reject('changed-packet',evidence)
+            evidence=proof();(directory/'final.json').write_text('{}')
+            reject('changed-final',evidence)
+            reject('manager-wait',proof(response=dict(action='wait',risk_multiplier=.5)))
+            reject('final-response-mismatch',proof(response=dict(response,reason='changed validated response')))
+            evidence=proof();outside=root/'receipt.json';outside.write_bytes(path.read_bytes())
+            reject('outside-reviews',dict(evidence,manager_receipt_path=str(outside)))
+            evidence=proof();key=prepare_llm('review-expires-before-send',evidence)
+            stored=gateway.order(key)['context'];stored['evidence']['decision_at']=stamp()
+            expired=proof(ended_utc='2000-01-01T00:00:00+00:00');stored['evidence'].update(expired)
+            try: gateway._risk(gateway.order(key)['payload'],stored,value)
+            except ValueError: pass
+            else: raise AssertionError('Persisted chart intent bypassed fresh review check')
+            assert not raw.writes and DEFAULTS['max_open_positions']==4
+        finally: gateway.db.close()
+
+
 async def check():
+    await check_snapshot()
+    check_llm_entries()
     assert normalize('1.2349',3)=='1.234'
     with TemporaryDirectory() as temporary, ExitStack() as cleanup:
         cfg=dict(DEFAULTS,enabled=True,account_binding='fixture',stop_capabilities_verified=True);exchange=Exchange();g=Gateway(Path(temporary),cfg,exchange)
@@ -205,7 +445,7 @@ async def check():
         assert status['actions'][0]['action']=='exit_attempt'
         assert any(p['side']=='SELL' and p['type']=='LIMIT' and p['price']=='103.00' for p in exchange.writes)
         assert len([r for r in exchange.orders.values() if r['active'] and r['type']=='STOP_LIMIT'])==1, 'Unfilled target exit lost protection'
-    print('live execution: disabled writes, pending exposure, idempotency, concurrent dispatch, timeout recovery, partial fills, native protection, stale orders and owned inventory OK')
+    print('live execution: optional-market isolation, owned/pending fail-closed, BTC protection preserved; receipt-bound chart entries, strict55, bounded snapshots, disabled writes and risk caps OK')
 
 
 if __name__=='__main__': asyncio.run(check())

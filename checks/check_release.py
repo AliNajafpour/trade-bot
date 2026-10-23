@@ -14,10 +14,13 @@ ROOT=Path(__file__).resolve().parents[1]
 sys.path.insert(0,str(ROOT))
 for file in [*ROOT.glob('*.py'),*(ROOT/'wallex_lab').rglob('*.py'),*(ROOT/'scripts').glob('*.py')]:
     ast.parse(file.read_text(encoding='utf-8-sig'),filename=str(file))
-metadata=json.loads((ROOT/'models/barrier-survival/late/model.json').read_text(encoding='utf-8'))
-assert len(metadata['members'])==3
-for member in metadata['members']:
-    assert hashlib.sha256((ROOT/'models/barrier-survival/late'/member['file']).read_bytes()).hexdigest()==member['sha256']
+for bundle in ('late',):
+    directory=ROOT/'models/barrier-survival'/bundle
+    metadata=json.loads((directory/'model.json').read_text(encoding='utf-8'))
+    assert len(metadata['members'])==3
+    assert len(metadata['symbols'])==4
+    for member in metadata['members']:
+        assert hashlib.sha256((directory/member['file']).read_bytes()).hexdigest()==member['sha256']
 cfg=json.loads((ROOT/'config/live-execution.json').read_text(encoding='utf-8'))
 assert cfg['enabled'] is False and cfg['account_binding'] is None and cfg['stop_capabilities_verified'] is False
 assert 'fetch(' not in (ROOT/'video-demo/dashboard.html').read_text(encoding='utf-8')
@@ -46,6 +49,6 @@ with TemporaryDirectory() as tmp:
         store.return_value.refresh.return_value={'status':'ok'}
         launcher.source(config)
     state=json.loads((Path(tmp)/config['run_dir']/'runtime-state.json').read_text(encoding='utf-8'))
-    assert len(state['quotes'])==4 and not state['errors']
-    assert quote.call_count==4 and bundle.call_count==2,'Collector duplicated a worker before its scheduled refresh'
-print('release: Python syntax, three final weight hashes, disabled real execution, offline demo and source scheduler OK')
+    assert len(state['quotes'])==len(config['symbols']) and not state['errors']
+    assert quote.call_count==len(config['symbols']) and bundle.call_count==2,'Collector duplicated a worker before its scheduled refresh'
+print('release: Python syntax, original model bundle, disabled real execution, offline demo and ten-market source scheduler OK')

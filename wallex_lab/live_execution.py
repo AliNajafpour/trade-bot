@@ -14,7 +14,7 @@ from .spot import _quote, load_exclusions, market_allowed
 
 REPO=Path(__file__).resolve().parents[1]
 DEFAULTS=dict(enabled=False,account_scope='credit_subaccount',account_binding=None,
-    symbols=['BTCUSDT','ETHUSDT','SOLUSDT','SUSDT'],max_position_fraction=.15,
+    symbols=['BTCUSDT','ETHUSDT','SOLUSDT','SUSDT','XRPUSDT','DOGEUSDT','ADAUSDT','BNBUSDT','TRXUSDT','LTCUSDT'],max_position_fraction=.15,
     risk_per_trade_fraction=.005,max_account_stop_risk_fraction=.02,max_open_positions=4,
     max_spread_bps=100,max_signal_age_seconds=120,snapshot_max_age_seconds=30,
     stop_limit_gap_bps=20,stop_capabilities_verified=False)
@@ -88,6 +88,13 @@ class Gateway:
         if snapshot.get('account_scope')!='credit_subaccount' or snapshot.get('account_binding')!=self.config['account_binding']:
             raise ValueError('Credit account binding mismatch')
         if not 0<=age(snapshot['observed_at'])<=self.config['snapshot_max_age_seconds']: raise ValueError('Stale account snapshot')
+        required={p['symbol'] for p in self.positions()}
+        for row in self.db.execute("SELECT id FROM orders WHERE role='entry' AND state IN ('acknowledged','sending','unknown','cancel_unknown')"):
+            order=self.order(row['id'])
+            if order['state']!='acknowledged' or (order['response'] or {}).get('active'): required.add(order['payload']['symbol'])
+        if (any(s not in snapshot.get(field,{}) for s in required for field in ('quotes','markets','fees'))
+                or any(s[:-4] not in snapshot.get('balances',{}) for s in required)):
+            raise ValueError('Owned or pending market data is unavailable')
 
     def _writes(self):
         if self.config.get('enabled') is not True or self.exchange.allow_writes is not True:
@@ -165,6 +172,52 @@ class Gateway:
         if self.db.execute("SELECT 1 FROM orders WHERE state IN ('sending','unknown','cancel_unknown') LIMIT 1").fetchone(): raise ValueError('Uncertain order blocks new entries until reconciled')
         evidence=context['evidence']
         if not 0<=age(evidence['decision_at'])<=self.config['max_signal_age_seconds']: raise ValueError('Signal expired')
+        self._entry_evidence(payload,context['barriers']['target_price'],context['barriers']['stop_price'],evidence,context['risk_multiplier'],market)
+
+    def _entry_evidence(self,payload,tp,sl,evidence,risk_multiplier,market):
+        symbol=payload['symbol']
+        if symbol in self.config.get('llm_chart_symbols',[]) and symbol in DEFAULTS['symbols'] and symbol not in ('BTCUSDT','ETHUSDT','SOLUSDT','SUSDT'):
+            if evidence.get('technical_mode')!='llm_chart': raise ValueError('Configured chart market requires manager approval')
+            path=Path(evidence['manager_receipt_path']).resolve()
+            if not path.is_relative_to((self.root/'reviews').resolve()) or path.name!='receipt.json':
+                raise ValueError('Manager receipt must be stored in this execution ledger')
+            raw=path.read_bytes()
+            if hashlib.sha256(raw).hexdigest()!=evidence['manager_receipt_sha256']: raise ValueError('Manager receipt integrity failed')
+            receipt=json.loads(raw);response=receipt['response']
+            if receipt.get('status')!='ok' or response.get('action')!='enter': raise ValueError('Manager did not approve this entry')
+            for name in ('packet.json','final.json'):
+                source=(path.parent/name).resolve()
+                if not source.is_relative_to((self.root/'reviews').resolve()): raise ValueError('Manager evidence escaped execution ledger')
+                data=source.read_bytes()
+                if hashlib.sha256(data).hexdigest()!=receipt['files_sha256'][name]: raise ValueError('Manager evidence integrity failed')
+                if name=='packet.json': packet=json.loads(data)
+                elif json.loads(data)!=response: raise ValueError('Manager validated response changed')
+            if packet.get('mode')!='real_spot_user_armed' or packet.get('paper_only') is not False or packet['prediction'].get('technical_mode')!='llm_chart':
+                raise ValueError('Public or model-only analysis cannot authorize a chart entry')
+            if not 0<=age(receipt['ended_utc'])<=self.config['max_signal_age_seconds']: raise ValueError('Manager review expired')
+            if packet['symbol']!=symbol: raise ValueError('Manager reviewed another symbol')
+            policy=packet.get('entry_policy')
+            if policy is not None:
+                reference=number(policy['reference_ask'],True);band=number(policy['max_reprice_bps'])
+                if band>10 or (number(policy['tp_fraction']),number(policy['sl_fraction']))!=(Decimal('.02'),Decimal('.02')):
+                    raise ValueError('Manager repricing policy exceeds reviewed limits')
+                if (number(packet['quote']['ask']),number(packet['prediction']['tp']),number(packet['prediction']['sl']))!=(reference,
+                        number(normalize(reference*Decimal('1.02'),market['tickSize'])),number(normalize(reference*Decimal('.98'),market['tickSize']))):
+                    raise ValueError('Manager reference levels disagree with repricing policy')
+                if abs(number(payload['price'])/reference-1)*10000>band:
+                    raise ValueError('Executable ask exceeds manager-approved price band')
+                if (number(tp),number(sl))!=(number(normalize(number(payload['price'])*Decimal('1.02'),market['tickSize'])),
+                        number(normalize(number(payload['price'])*Decimal('.98'),market['tickSize']))):
+                    raise ValueError('Repriced entry requires fixed two-percent barriers')
+            elif (number(packet['quote']['ask']),number(packet['prediction']['tp']),number(packet['prediction']['sl']))!=(number(payload['price']),number(tp),number(sl)):
+                raise ValueError('Executable levels changed; fresh manager review required')
+            if not 0<number(risk_multiplier)<=number(response['risk_multiplier'])<=1: raise ValueError('Manager-approved risk was exceeded')
+        else:
+            probs=[number(evidence[k]) for k in ('p_tp_first','p_sl_first','p_no_touch')]
+            if any(p>1 for p in probs) or abs(sum(probs)-1)>Decimal('.00001'): raise ValueError('Invalid competing-risk probabilities')
+            if evidence.get('support_flags') or evidence['horizon_minutes']!=1440 or probs[0]<=Decimal('.55'): raise ValueError('Weekly entry gate failed')
+        if (number(evidence['execution_ask']),number(evidence['tp']),number(evidence['sl']))!=(number(payload['price']),number(tp),number(sl)):
+            raise ValueError('Rounded executable levels require a fresh review')
 
     def prepare_entry(self,key,symbol,quantity,price,stop,target,snapshot,evidence,*,risk_multiplier):
         with exclusive(self.root/'dispatch.lock'):
@@ -176,14 +229,10 @@ class Gateway:
         sl=normalize(stop,market['tickSize']);tp=normalize(target,market['tickSize'])
         if (sl,tp)!=(normalize(number(payload['price'])*Decimal('.98'),market['tickSize']),normalize(number(payload['price'])*Decimal('1.02'),market['tickSize'])):
             raise ValueError('Weekly live policy requires fixed two-percent barriers')
-        probs=[number(evidence[k]) for k in ('p_tp_first','p_sl_first','p_no_touch')]
-        if any(p>1 for p in probs) or abs(sum(probs)-1)>Decimal('.00001'): raise ValueError('Invalid competing-risk probabilities')
-        if evidence.get('support_flags') or evidence['horizon_minutes']!=1440 or probs[0]<=Decimal('.55'): raise ValueError('Weekly entry gate failed')
-        if (number(evidence['execution_ask']),number(evidence['tp']),number(evidence['sl']))!=(number(payload['price']),number(tp),number(sl)):
-            raise ValueError('Rounded executable levels require a fresh model score')
         context=dict(barriers=dict(stop_price=sl,target_price=tp),evidence=evidence,risk_multiplier=float(risk_multiplier))
         existing=self.db.execute('SELECT id FROM orders WHERE intent_key=?',(key,)).fetchone()
         if not existing: self._risk(payload,context,snapshot)
+        else: self._entry_evidence(payload,tp,sl,evidence,risk_multiplier,market)
         return self._record(key,'entry',payload,context)
 
     def _observe(self,key,response):
@@ -298,13 +347,14 @@ class Gateway:
         await self._reconcile()
         entry=self.order(parent)
         if entry['state']!='acknowledged': raise RuntimeError('Entry acceptance unresolved')
+        snapshot=await self.exchange.snapshot();self._snapshot(snapshot)
         await self._cancel(parent)
         await self._reconcile()
         position=next((p for p in self.positions() if p['parent']==parent),None)
         if not position: return None
         existing=[self.order(r['id']) for r in self.db.execute("SELECT id FROM orders WHERE parent=? AND role='stop'",(parent,)).fetchall()]
         if any(r['state'] in ('sending','unknown','cancel_unknown') for r in existing): raise RuntimeError('Protective order acceptance unresolved')
-        snapshot=await self.exchange.snapshot();market=snapshot['markets'][position['symbol']]
+        market=snapshot['markets'][position['symbol']]
         qty=normalize(position['quantity'],market['stepSize']);stop=position['stop_price']
         active=[r for r in existing if (r['response'] or {}).get('active')]
         if len(active)>1: raise RuntimeError('Multiple active protective orders require reconciliation')
@@ -415,8 +465,10 @@ class WallexMCP:
         'wallex_spot_get_markets','wallex_spot_get_open_order','wallex_spot_get_orders_client','wallex_basic_get_market_depth'})
     WRITES=frozenset({'wallex_spot_post_account_orders','wallex_spot_delete_orders_client'})
 
-    def __init__(self,root,symbols,*,allow_writes=False):
+    def __init__(self,root,symbols,*,allow_writes=False,optional_symbols=()):
         self.root=Path(root);self.symbols=symbols;self.allow_writes=allow_writes
+        self.optional_symbols=frozenset(optional_symbols)
+        if not self.optional_symbols<=set(symbols)&set(DEFAULTS['symbols'][4:]): raise ValueError('Only configured reviewed chart markets may be optional')
 
     async def __aenter__(self):
         import os
@@ -454,58 +506,89 @@ class WallexMCP:
 
     async def snapshot(self):
         from .data import PublicClient
-        balances=(await self._call('wallex_credit_sub_account_balances_details',{}))['result']
         observed_at=datetime.now(timezone.utc).isoformat()
-        fees=(await self._call('wallex_basic_get_account_fees',{}))['result']
-        raw=(await self._call('wallex_spot_get_markets',{}))['result']
-        listed=raw.get('symbols',raw.get('markets',raw))
-        if isinstance(listed,list): listed={r['symbol']:r for r in listed}
-        # MCP's market listing omits minimum order sizes; use the authenticated-free official limits endpoint.
-        clock=asyncio.get_running_loop().time()
-        if not hasattr(self,'_limits_cache') or clock-self._limits_cache[0]>=300:
-            client=PublicClient(self.root/'public',timeout=15)
-            try: limits,receipt=await asyncio.to_thread(client.get,'/v1/markets',label='execution_limits')
-            finally: client.session.close()
-            self._limits_cache=(clock,limits,receipt)
-        else: _,limits,receipt=self._limits_cache
-        if limits.get('success') is not True: raise ValueError('Official venue limits unavailable')
-        markets=limits['result']['symbols']
-        quotes={}
-        for symbol in self.symbols:
-            book=(await self._call('wallex_basic_get_market_depth',dict(symbol=symbol)))['result']
+        slots=asyncio.Semaphore(4)
+        market_errors={}
+        async def read(name,args):
+            async with slots: return await self._call(name,args)
+        async def depth(symbol):
+            book=(await read('wallex_basic_get_market_depth',dict(symbol=symbol)))['result']
             bids=book.get('bid',book.get('bids'));asks=book.get('ask',book.get('asks'))
             if not bids or not asks: raise ValueError('Executable depth is unavailable')
             bid=max(bids,key=lambda r:number(r['price']));ask=min(asks,key=lambda r:number(r['price']))
-            quotes[symbol]=dict(bid=float(number(bid['price'],True)),ask=float(number(ask['price'],True)),
+            return dict(bid=float(number(bid['price'],True)),ask=float(number(ask['price'],True)),
                 bid_quantity=float(number(bid['quantity'],True)),ask_quantity=float(number(ask['quantity'],True)),
                 available_at=datetime.now(timezone.utc).isoformat(),source='https://api.wallex.ir/mcp')
-        orders=[]
-        for page in range(1,101):
-            response=await self._call('wallex_spot_get_open_order',dict(page=page,per_page=100))
-            result=response['result']
-            if isinstance(result,list): batch=result
-            elif isinstance(result,dict) and isinstance(result.get('orders'),list): batch=result['orders']
-            elif isinstance(result,dict) and all(isinstance(v,list) for v in result.values()): batch=[r for rows in result.values() for r in rows]
-            else: raise ValueError('Unknown open-order response shape')
-            orders.extend(batch)
-            if len(batch)<100: break
-        else: raise ValueError('Open-order pagination limit reached; snapshot incomplete')
-        for symbol in self.symbols:
-            market=markets[symbol]
-            for required in ('baseAsset','quoteAsset','stepSize','tickSize','minQty','minNotional'):
-                if required not in market: raise ValueError('Official market precision/limits unavailable')
-            for required in ('makerFeeRate','takerFeeRate'): number(fees[symbol][required])
-            current=listed[symbol]
-            if current.get('base_asset',current.get('baseAsset'))!=market['baseAsset'] or current.get('quote_asset',current.get('quoteAsset'))!=market['quoteAsset']:
-                raise ValueError('Official market metadata disagrees')
-            for field,other in (('stepSize','amount_precision'),('tickSize','price_precision')):
-                if current.get(other,current.get(field))!=market[field]: raise ValueError('Official venue precisions disagree')
+        async def market_depth(symbol):
+            if symbol not in self.optional_symbols: return await depth(symbol)
+            try: return await asyncio.wait_for(depth(symbol),timeout=12)
+            except Exception as error:
+                market_errors[symbol]=dict(error_type=type(error).__name__,error_code='market_unavailable')
+                return None
+        async def official_limits():
+            # MCP's market listing omits minimum order sizes; use the official public limits endpoint.
+            clock=asyncio.get_running_loop().time()
+            if not hasattr(self,'_limits_cache') or clock-self._limits_cache[0]>=300:
+                client=PublicClient(self.root/'public',timeout=15)
+                try:
+                    async with slots: limits,receipt=await asyncio.to_thread(client.get,'/v1/markets',label='execution_limits')
+                finally: client.session.close()
+                self._limits_cache=(clock,limits,receipt)
+            return self._limits_cache[1:]
+        async def open_orders():
+            orders=[]
+            for page in range(1,101):
+                response=await read('wallex_spot_get_open_order',dict(page=page,per_page=100))
+                result=response['result']
+                if isinstance(result,list): batch=result
+                elif isinstance(result,dict) and isinstance(result.get('orders'),list): batch=result['orders']
+                elif isinstance(result,dict) and all(isinstance(v,list) for v in result.values()): batch=[r for rows in result.values() for r in rows]
+                else: raise ValueError('Unknown open-order response shape')
+                orders.extend(batch)
+                if len(batch)<100: return orders
+            raise ValueError('Open-order pagination limit reached; snapshot incomplete')
+        # Separate snapshots have their own bounded reads so a scan cannot queue out the protection monitor.
+        tasks=[asyncio.create_task(job) for job in (
+            read('wallex_credit_sub_account_balances_details',{}),
+            read('wallex_basic_get_account_fees',{}),read('wallex_spot_get_markets',{}),
+            official_limits(),open_orders(),
+            *(market_depth(s) for s in self.symbols))]
+        try: balances,fees,raw,limits_result,orders,*books=await asyncio.gather(*tasks)
+        finally:
+            for task in tasks:
+                if not task.done(): task.cancel()
+            await asyncio.gather(*tasks,return_exceptions=True)
+        balances,fees,raw=balances['result'],fees['result'],raw['result']
+        limits,receipt=limits_result
+        listed=raw.get('symbols',raw.get('markets',raw))
+        if isinstance(listed,list): listed={r['symbol']:r for r in listed}
+        if limits.get('success') is not True: raise ValueError('Official venue limits unavailable')
+        markets=limits['result']['symbols']
+        quotes=dict(zip(self.symbols,books))
         if 'USDT' not in balances or any(k not in balances['USDT'] for k in ('available','total')): raise ValueError('Credit balance is incomplete')
-        for asset in {'USDT',*(s[:-4] for s in self.symbols)}:
-            if number(balances[asset]['available'])>number(balances[asset]['total']): raise ValueError('Invalid credit balance')
+        if number(balances['USDT']['available'])>number(balances['USDT']['total']): raise ValueError('Invalid credit balance')
+        for symbol in self.symbols:
+            if symbol in market_errors:
+                quotes.pop(symbol);continue
+            try:
+                market=markets[symbol]
+                for required in ('baseAsset','quoteAsset','stepSize','tickSize','minQty','minNotional'):
+                    if required not in market: raise ValueError('Official market precision/limits unavailable')
+                for required in ('makerFeeRate','takerFeeRate'): number(fees[symbol][required])
+                current=listed[symbol]
+                if current.get('base_asset',current.get('baseAsset'))!=market['baseAsset'] or current.get('quote_asset',current.get('quoteAsset'))!=market['quoteAsset']:
+                    raise ValueError('Official market metadata disagrees')
+                for field,other in (('stepSize','amount_precision'),('tickSize','price_precision')):
+                    if current.get(other,current.get(field))!=market[field]: raise ValueError('Official venue precisions disagree')
+                asset=symbol[:-4]
+                if number(balances[asset]['available'])>number(balances[asset]['total']): raise ValueError('Invalid credit balance')
+            except Exception as error:
+                if symbol not in self.optional_symbols: raise
+                market_errors[symbol]=dict(error_type=type(error).__name__,error_code='market_unavailable')
+                quotes.pop(symbol)
         return dict(account_scope='credit_subaccount',account_binding=self.binding,
             observed_at=observed_at,balances=balances,
-            markets={s:markets[s] for s in self.symbols},fees={s:fees[s] for s in self.symbols},quotes=quotes,open_orders=orders,
+            markets={s:markets[s] for s in quotes},fees={s:fees[s] for s in quotes},quotes=quotes,open_orders=orders,market_errors=market_errors,
             limits_receipt=receipt)
 
 

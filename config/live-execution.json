@@ -2,12 +2,19 @@
   "enabled": false,
   "account_scope": "credit_subaccount",
   "account_binding": null,
+  "llm_chart_symbols": ["XRPUSDT", "DOGEUSDT", "ADAUSDT", "BNBUSDT", "TRXUSDT", "LTCUSDT"],
   "run_dir": "runs/live-execution",
   "symbols": [
     "BTCUSDT",
     "ETHUSDT",
     "SOLUSDT",
-    "SUSDT"
+    "SUSDT",
+    "XRPUSDT",
+    "DOGEUSDT",
+    "ADAUSDT",
+    "BNBUSDT",
+    "TRXUSDT",
+    "LTCUSDT"
   ],
   "max_position_fraction": 0.15,
   "risk_per_trade_fraction": 0.005,

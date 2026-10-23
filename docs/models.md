@@ -66,6 +66,16 @@ python -m scripts.train_dense_barrier_survival --dataset data/dense --output run
 
 Use `--device cpu` for a compatible CPU path, with a much longer expected runtime. Downloading the same date interval later does not guarantee byte-identical exchange history. Keep manifests, hashes, splits, calibration and test outputs when making a scientific comparison. Do not claim that a new run reproduces the published result unless its inputs and execution protocol match.
 
+## Ten-market deployment analysis
+
+The neural bundle remains unchanged and supports BTCUSDT, ETHUSDT, SOLUSDT and SUSDT. These four retain the strict absolute TP-first probability gate above 55%.
+
+Six additional markets—XRPUSDT, DOGEUSDT, ADAUSDT, BNBUSDT, TRXUSDT and LTCUSDT—are explicitly configured in `llm_chart_symbols`. They use the configured vision-capable LLM to assess completed 1m/5m/15m charts, numeric 1h/4h/24h price/volume summaries, public market/news and macro reports, and the executable Wallex book. They are not mapped to a trained asset, do not emit survival probabilities, and do not inherit the neural model's backtest result. No additional training is required for this route.
+
+One chart review runs at a time in a separate worker. The default cadence is ten minutes per market after its previous assessment, configurable with `manager_scan_seconds`; the neural scan and protection worker continue independently. In OFF mode these reviews contain only public evidence and cannot authorize an order. After the owner activates execution, new private reviews include account limits. Entry approval is checked against persisted provider, packet and response hashes, review freshness and the risk multiplier.
+
+An explicit reviewed entry policy permits at most 10 basis points of entry repricing; TP and SL remain exactly +/-2% of the final executable ask. Movement outside that range requires a fresh review. Fees, spread, depth, venue minimums, capital and risk caps are rechecked. The original four keep their existing numerical probability gates. Neither LLM chart assessments nor the new ten-market combination have an established live profitability record.
+
 ## Optional model families
 
 Kronos support uses vendored pinned source, a tokenizer and separately acquired model weights. The release retains the source required for genuine sampling rather than substituting a moving-average forecast. The adapters expect pinned model directories under `models/`; hashes and revisions are in `kronos.py`. Large upstream foundation weights are not bundled because Weekly/late does not load them.

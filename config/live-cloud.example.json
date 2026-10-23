@@ -7,9 +7,10 @@
   "run_dir": "/data/live",
   "source": "/data/source",
   "model": "models/barrier-survival/late",
-  "symbols": ["BTCUSDT", "ETHUSDT", "SOLUSDT", "SUSDT"],
+  "symbols": ["BTCUSDT", "ETHUSDT", "SOLUSDT", "SUSDT", "XRPUSDT", "DOGEUSDT", "ADAUSDT", "BNBUSDT", "TRXUSDT", "LTCUSDT"],
+  "llm_chart_symbols": ["XRPUSDT", "DOGEUSDT", "ADAUSDT", "BNBUSDT", "TRXUSDT", "LTCUSDT"],
   "history_mode": "kucoin_proxy",
-  "proxy_venues": {"SOLUSDT": "mexc"},
+  "proxy_venues": {"SOLUSDT": "mexc", "XRPUSDT": "mexc", "LTCUSDT": "mexc"},
   "max_position_fraction": 0.15,
   "risk_per_trade_fraction": 0.005,
   "max_account_stop_risk_fraction": 0.02,
@@ -19,6 +20,7 @@
   "snapshot_max_age_seconds": 30,
   "stop_limit_gap_bps": 20,
   "scan_seconds": 120,
+  "manager_scan_seconds": 600,
   "monitor_seconds": 5,
   "manager_timeout_seconds": 90
 }

@@ -30,6 +30,14 @@ def check_diagnostics():
 
 async def check():
     import pandas as pd
+    assert len(DEFAULTS['symbols'])==10 and DEFAULTS['max_open_positions']==4
+    for name in ('live-cloud.example.json','live-execution.json','weekly-source.example.json'):
+        template=json.loads((Path(__file__).resolve().parents[1]/'config'/name).read_text())
+        assert [s.replace('/','') for s in template['symbols']]==DEFAULTS['symbols']
+        if name!='weekly-source.example.json':
+            assert template['enabled'] is False and template['max_open_positions']==4
+            for cap in ('max_position_fraction','risk_per_trade_fraction','max_account_stop_risk_fraction'):
+                assert template[cap]==DEFAULTS[cap]
     with TemporaryDirectory() as temporary:
         root = Path(temporary)
         path = root / 'config.json'
@@ -53,6 +61,27 @@ async def check():
         runner.reports = lambda: dict(market=None, macro=None)
         runner.review = lambda *_: (_ for _ in ()).throw(AssertionError('Disabled runner called the manager'))
         try:
+            ten=snapshot()
+            for symbol in DEFAULTS['symbols']:
+                ten['markets'][symbol]=dict(ten['markets']['BTCUSDT'],symbol=symbol,baseAsset=symbol[:-4])
+                ten['quotes'][symbol]=deepcopy(ten['quotes']['BTCUSDT'])
+                ten['fees'][symbol]=deepcopy(ten['fees']['BTCUSDT'])
+            write(symbols=DEFAULTS['symbols'])
+            runner.refresh_config()
+            await runner.scan(ten)
+            assert len(runner.state['last_scan']['results'])==10
+            assert all(r['status']=='eligible_disabled' for r in runner.state['last_scan']['results'])
+            assert not raw.writes and runner.gateway.db.execute('SELECT count(*) FROM orders').fetchone()[0]==0
+            validate_activation(dict(config,enabled=True,stop_capabilities_verified=True),'fixture')
+            try: validate_activation(dict(config,enabled=True,stop_capabilities_verified=True,max_open_positions=5),'fixture')
+            except ValueError: pass
+            else: raise AssertionError('Ten markets increased the four-position risk cap')
+            for operation in (guarded.place({}),guarded.cancel('anything')):
+                try: await operation
+                except PermissionError: pass
+                else: raise AssertionError('Disabled ten-market configuration crossed exchange boundary')
+            write(symbols=['BTCUSDT'])
+            runner.refresh_config()
             await runner.scan(snapshot())
             assert runner.state['last_scan']['results'][0]['status'] == 'eligible_disabled'
             assert not raw.writes and runner.gateway.db.execute('SELECT count(*) FROM orders').fetchone()[0] == 0
@@ -188,7 +217,7 @@ async def check():
             assert gateway.order(uncertain)['state'] == 'unknown' and not raw.writes
         finally:
             gateway.db.close()
-    print('PASS: disabled/no-signal/wait; capital/native-stop gates; BUY+STOP; prepared entries retired after failure/re-enable/restart; uncertain orders and protective children preserved')
+    print('PASS: ten-market OFF scan submits/cancels nothing; four-position/risk caps preserved; capital/native-stop gates; BUY+STOP; prepared entries retired; uncertain orders and protective children preserved')
 
 
 if __name__ == '__main__':

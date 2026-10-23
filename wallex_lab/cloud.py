@@ -16,11 +16,11 @@ ROOT=Path(__file__).resolve().parents[1]
 def bootstrap(data_dir):
     data=Path(data_dir).resolve();data.mkdir(parents=True,exist_ok=True)
     execution=data/'execution.json'
+    template=json.loads((ROOT/'config/live-cloud.example.json').read_text('utf-8'))
+    model=ROOT/template['model']
+    identity=dict(model=str(model),model_metadata_sha256=hashlib.sha256((model/'model.json').read_bytes()).hexdigest())
     if not execution.exists():
-        config=json.loads((ROOT/'config/live-cloud.example.json').read_text('utf-8'))
-        config.update(run_dir=str(data/'live'),source=str(data/'source'),
-            model=str(ROOT/'models/barrier-survival/late'),
-            model_metadata_sha256=hashlib.sha256((ROOT/'models/barrier-survival/late/model.json').read_bytes()).hexdigest())
+        config=dict(template,run_dir=str(data/'live'),source=str(data/'source'),**identity)
         # Exclusive creation preserves the user's state across redeploys, without a first-boot race.
         try:
             with execution.open('x',encoding='utf-8') as f:json.dump(config,f,indent=2)
@@ -29,6 +29,18 @@ def bootstrap(data_dir):
     if os.environ.get('WALLEX_FORCE_DISABLE','false').lower()=='true':
         from .context import save_json
         config['enabled']=False;save_json(execution,config)
+    old_model=ROOT/'models/barrier-survival/late'
+    old_hash=hashlib.sha256((old_model/'model.json').read_bytes()).hexdigest()
+    if (config.get('enabled') is False and not config.get('universe_upgrade_from_sha256')
+            and config.get('symbols')==['BTCUSDT','ETHUSDT','SOLUSDT','SUSDT']
+            and len(template['symbols'])==10 and config.get('model_metadata_sha256')==old_hash):
+        # Upgrade only the recognized, disabled four-asset bundle; keep the owner's account and risk settings.
+        from .context import save_json
+        config.update(symbols=template['symbols'],**identity,universe_upgrade_from_sha256=old_hash,
+            proxy_venues={**template.get('proxy_venues',{}),**config.get('proxy_venues',{})},
+            llm_chart_symbols=template.get('llm_chart_symbols',[]),
+            manager_scan_seconds=template.get('manager_scan_seconds',600))
+        save_json(execution,config)
     source=json.loads((ROOT/'config/weekly-source.example.json').read_text('utf-8'))
     source['run_dir']=str(data/'source')
     source['symbols']=[s[:-4]+'/USDT' for s in config['symbols']]
