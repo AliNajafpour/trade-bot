@@ -4,10 +4,9 @@
 
 ## کانتینر
 
-از `Dockerfile.live` استفاده کنید. این فایل وابستگی‌های inference را از `requirements-live.txt` و PyTorch مخصوص CPU نصب می‌کند. مدل‌های کوچک احتمال همراه مخزن هستند؛ وزن‌های ثابت Kronos و Chronos-2 را پیش از ساخت با دستور زیر دریافت کنید. فایل‌های بزرگ وارد Git نمی‌شوند؛ نسخه و SHA256 شش فایل در `config/foundation-models.json` ثابت است.
+از `Dockerfile.live` استفاده کنید. این فایل وابستگی‌های inference را از `requirements-live.txt` و PyTorch مخصوص CPU نصب می‌کند. مدل‌های کوچک احتمال همراه مخزن هستند؛ وزن‌های ثابت Kronos و Chronos-2 هنگام ساخت از منبع عمومی Hugging Face دریافت و بررسی می‌شوند. فایل‌های بزرگ وارد Git نمی‌شوند؛ نسخه و SHA256 شش فایل در `config/foundation-models.json` ثابت است. ساخت اولیه به اینترنت نیاز دارد؛ inference بعدی با فایل‌های داخل کانتینر انجام می‌شود.
 
 ```bash
-python scripts/foundation_models.py
 docker build -f Dockerfile.live -t wallex-live .
 docker run --env-file .env -p 8080:8080 -v wallex-data:/data wallex-live
 ```

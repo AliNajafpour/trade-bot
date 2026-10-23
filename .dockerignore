@@ -16,12 +16,8 @@
 !models/barrier-survival/late/**
 !models/barrier-survival/pretrained8/
 !models/barrier-survival/pretrained8/**
-!models/kronos-small-901c26c/
-!models/kronos-small-901c26c/**
-!models/kronos-tokenizer-base-0e01173/
-!models/kronos-tokenizer-base-0e01173/**
-!models/chronos-2-29ec376/
-!models/chronos-2-29ec376/**
+!scripts/
+!scripts/foundation_models.py
 !third_party/
 !third_party/**
 **/__pycache__

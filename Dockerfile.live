@@ -7,14 +7,14 @@ ENV PYTHONUNBUFFERED=1 PYTHONDONTWRITEBYTECODE=1 \
 COPY requirements-live.txt ./
 RUN pip install --no-cache-dir torch==2.7.1 --index-url https://download.pytorch.org/whl/cpu \
     && pip install --no-cache-dir -r requirements-live.txt
+COPY config/foundation-models.json ./config/foundation-models.json
+COPY scripts/foundation_models.py ./scripts/foundation_models.py
+RUN python scripts/foundation_models.py
 COPY run.py ./
 COPY wallex_lab ./wallex_lab
 COPY config ./config
 COPY models/barrier-survival/late ./models/barrier-survival/late
 COPY models/barrier-survival/pretrained8 ./models/barrier-survival/pretrained8
-COPY models/kronos-small-901c26c ./models/kronos-small-901c26c
-COPY models/kronos-tokenizer-base-0e01173 ./models/kronos-tokenizer-base-0e01173
-COPY models/chronos-2-29ec376 ./models/chronos-2-29ec376
 COPY docs/fee-evidence ./docs/fee-evidence
 COPY third_party ./third_party
 RUN python run.py verify
