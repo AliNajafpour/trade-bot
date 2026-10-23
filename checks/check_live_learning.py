@@ -79,6 +79,13 @@ def check():
         try:reopened.sync(trades[1:])
         except ValueError:pass
         else:raise AssertionError('Previously settled label disappeared without blocking learning')
+        with reopened.db() as db:
+            state=reopened.load(db);state['weights']['news']=100.;reopened.save(db,state)
+        from wallex_lab.live_runner import LiveRunner
+        config=root/'config.json';config.write_text(json.dumps(dict(run_dir=str(root),adaptive_learning=True)))
+        runner=LiveRunner(config)
+        assert runner.learning is None and runner.state['adaptive_learning']['status']=='blocked'
+        assert runner.gateway is None,'Corrupt optional learning state stopped base actor construction'
     print('PASS all-ten accounting, immutable entry receipts, 20 training + 10 genuinely future validations, bounded source weights, restart idempotence, rollback and no invented TP probabilities')
 
 

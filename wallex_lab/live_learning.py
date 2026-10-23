@@ -100,7 +100,13 @@ class LiveLearning:
             finally:db.close()
 
     @staticmethod
-    def load(db):return json.loads(db.execute('SELECT body FROM learning_state WHERE id=1').fetchone()[0])
+    def load(db):
+        state=json.loads(db.execute('SELECT body FROM learning_state WHERE id=1').fetchone()[0])
+        if state.get('format')!=1:raise ValueError('Learning state version mismatch')
+        for weights in (state['weights'],(state.get('candidate') or {}).get('weights',UNIT)):
+            if set(weights)!=set(SOURCES) or any(not .75<=float(v)<=1.25 for v in weights.values()):
+                raise ValueError('Persistent source weights outside bounds')
+        return state
 
     @staticmethod
     def save(db,state):db.execute('INSERT OR REPLACE INTO learning_state VALUES(1,?)',(json.dumps(state,allow_nan=False),))

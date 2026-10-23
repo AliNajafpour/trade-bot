@@ -250,9 +250,13 @@ class LiveRunner:
         self.chart_due = {}
         self.learning = None
         if self.config.get('adaptive_learning'):
-            from .live_learning import LiveLearning
-            self.learning=LiveLearning(self.root,self.config['symbols'])
-            self.state['adaptive_learning']=self.learning.status()
+            try:
+                from .live_learning import LiveLearning
+                self.learning=LiveLearning(self.root,self.config['symbols'])
+                self.state['adaptive_learning']=self.learning.status()
+            except Exception as error:
+                self.learning=None
+                self.state['adaptive_learning']=dict(enabled=True,status='blocked',error_type=type(error).__name__)
 
     def publish(self):
         self.state['updated_at'] = stamp()
