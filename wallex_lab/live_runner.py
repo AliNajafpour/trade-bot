@@ -23,7 +23,10 @@ certainty or automatically reject missing reports. Explain the chart evidence an
 and macro affect the decision. TP/SL are fixed at +/-2% of the supplied executable ask; for
 an owned position use its OWN barriers. For a new entry, enter also approves the supplied
 entry_policy: entry may move at most 10 basis points from reference_ask, with TP/SL remaining
-exactly +/-2% of the final entry. Wait if this bounded repricing is unsuitable. Never borrow,
+exactly +/-2% of the final entry. reference_ask is the CURRENT executable ask in the packet;
+the 10bp band limits changes AFTER this review. It is NOT a maximum bid/ask spread or a
+maximum difference between chart close and ask. Do not invent either of those extra gates.
+Assess the supplied spread and costs separately. Wait if this bounded repricing is unsuitable. Never borrow,
 short or use leverage.
 There is no timed forced exit. Respect supplied execution costs, cash and risk limits.
 When mode is public_chart_analysis, account state is deliberately absent: enter means a
