@@ -1,0 +1,12 @@
+*
+!requirements-portable.txt
+!wallex_lab/
+!wallex_lab/**
+!config/
+!config/**
+!docs/
+!docs/fee-evidence/
+!docs/fee-evidence/**
+**/__pycache__
+**/*.pyc
+**/.env*

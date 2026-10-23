@@ -1,0 +1,12 @@
+{
+  "mode": "paper",
+  "port": 8850,
+  "run_dir": "runs/weekly-paper",
+  "capital_seed": "config/paper-capital.example.json",
+  "model": "models/barrier-survival/late",
+  "source": "runs/weekly-source",
+  "history_mode": "kucoin_proxy",
+  "proxy_venues": {"SOLUSDT": "mexc"},
+  "entry_window_seconds": 7200,
+  "policy": {"minimum_net_rr": 0}
+}

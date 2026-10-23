@@ -1,0 +1,5 @@
+* text=auto eol=lf
+*.pt binary
+*.png binary
+third_party/** -text -whitespace
+wallex_lab/vendor_kronos/** -text -whitespace

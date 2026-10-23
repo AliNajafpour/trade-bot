@@ -1,0 +1,21 @@
+{
+  "enabled": false,
+  "account_scope": "credit_subaccount",
+  "account_binding": null,
+  "run_dir": "runs/live-execution",
+  "symbols": [
+    "BTCUSDT",
+    "ETHUSDT",
+    "SOLUSDT",
+    "SUSDT"
+  ],
+  "max_position_fraction": 0.15,
+  "risk_per_trade_fraction": 0.005,
+  "max_account_stop_risk_fraction": 0.02,
+  "max_open_positions": 4,
+  "max_spread_bps": 100,
+  "max_signal_age_seconds": 120,
+  "snapshot_max_age_seconds": 30,
+  "stop_limit_gap_bps": 20,
+  "stop_capabilities_verified": false
+}

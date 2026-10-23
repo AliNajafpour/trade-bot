@@ -1,0 +1,230 @@
+{
+  "schema_version": 1,
+  "checked_date": "2026-10-21",
+  "checked_utc": "2026-10-21T15:04:19.196590+00:00",
+  "status": "official_public_schedule_verified_account_unknown",
+  "source": {
+    "url": "https://api.wallex.ir/v2/structured-fee",
+    "page": "https://wallex.ir/commission",
+    "authenticated": false,
+    "http_status": 200,
+    "sha256": "bb0a2a600d56ccd2f0581a142b6cba2452f04f11acb2437bba6f74688f403e8b",
+    "raw_body_path": "docs/fee-evidence/public-structured-fee.json",
+    "receipt_path": "docs/fee-evidence/public-structured-fee.receipt.json",
+    "discovery": "Official commission-page client code fetches v2/structured-fee; displays 100*maker_fee and 100*taker_fee as percent and labels volume30days."
+  },
+  "spot_public_schedule": {
+    "TMN": {
+      "quote_currency": "TMN",
+      "volume_window_days": 30,
+      "volume_unit": "TMN",
+      "raw_is_fixed": true,
+      "tiers": [
+        {
+          "level": 1,
+          "label": "سطح ۱",
+          "volume_threshold": 0,
+          "volume_upper_threshold": 100000000,
+          "maker_fraction": 0.0025,
+          "taker_fraction": 0.003,
+          "maker_percent": 0.25,
+          "taker_percent": 0.3,
+          "maker_bps": 25.0,
+          "taker_bps": 30.0,
+          "daily_withdrawal_limitation": 100000000
+        },
+        {
+          "level": 2,
+          "label": "سطح ۲",
+          "volume_threshold": 100000000,
+          "volume_upper_threshold": 1000000000,
+          "maker_fraction": 0.002,
+          "taker_fraction": 0.0025,
+          "maker_percent": 0.2,
+          "taker_percent": 0.25,
+          "maker_bps": 20.0,
+          "taker_bps": 25.0,
+          "daily_withdrawal_limitation": 300000000
+        },
+        {
+          "level": 3,
+          "label": "سطح ۳",
+          "volume_threshold": 1000000000,
+          "volume_upper_threshold": 3000000000,
+          "maker_fraction": 0.0017,
+          "taker_fraction": 0.002,
+          "maker_percent": 0.17,
+          "taker_percent": 0.2,
+          "maker_bps": 17.0,
+          "taker_bps": 20.0,
+          "daily_withdrawal_limitation": 500000000
+        },
+        {
+          "level": 4,
+          "label": "سطح ۴",
+          "volume_threshold": 3000000000,
+          "volume_upper_threshold": 10000000000,
+          "maker_fraction": 0.0014,
+          "taker_fraction": 0.0017,
+          "maker_percent": 0.14,
+          "taker_percent": 0.17,
+          "maker_bps": 14.0,
+          "taker_bps": 17.0,
+          "daily_withdrawal_limitation": 600000000
+        },
+        {
+          "level": 5,
+          "label": "سطح ۵",
+          "volume_threshold": 10000000000,
+          "volume_upper_threshold": 20000000000,
+          "maker_fraction": 0.0012,
+          "taker_fraction": 0.0015,
+          "maker_percent": 0.12,
+          "taker_percent": 0.15,
+          "maker_bps": 12.0,
+          "taker_bps": 15.0,
+          "daily_withdrawal_limitation": 800000000
+        },
+        {
+          "level": 6,
+          "label": "سطح ۶",
+          "volume_threshold": 20000000000,
+          "volume_upper_threshold": null,
+          "maker_fraction": 0.001,
+          "taker_fraction": 0.0013,
+          "maker_percent": 0.1,
+          "taker_percent": 0.13,
+          "maker_bps": 10.0,
+          "taker_bps": 13.0,
+          "daily_withdrawal_limitation": 2000000000
+        }
+      ]
+    },
+    "USDT": {
+      "quote_currency": "USDT",
+      "volume_window_days": 30,
+      "volume_unit": "USDT",
+      "raw_is_fixed": true,
+      "tiers": [
+        {
+          "level": 1,
+          "label": "سطح ۱",
+          "volume_threshold": 0,
+          "volume_upper_threshold": 500000,
+          "maker_fraction": 0.001,
+          "taker_fraction": 0.0013,
+          "maker_percent": 0.1,
+          "taker_percent": 0.13,
+          "maker_bps": 10.0,
+          "taker_bps": 13.0,
+          "daily_withdrawal_limitation": 20000
+        },
+        {
+          "level": 2,
+          "label": "سطح ۲",
+          "volume_threshold": 500000,
+          "volume_upper_threshold": null,
+          "maker_fraction": 0.0005,
+          "taker_fraction": 0.0008,
+          "maker_percent": 0.05,
+          "taker_percent": 0.08,
+          "maker_bps": 5.0,
+          "taker_bps": 8.0,
+          "daily_withdrawal_limitation": 100000
+        }
+      ]
+    },
+    "BTC": {
+      "quote_currency": "BTC",
+      "volume_window_days": 30,
+      "volume_unit": "BTC",
+      "raw_is_fixed": true,
+      "tiers": [
+        {
+          "level": 1,
+          "label": "ثابت",
+          "volume_threshold": 0,
+          "volume_upper_threshold": null,
+          "maker_fraction": 0.0,
+          "taker_fraction": 0.0,
+          "maker_percent": 0.0,
+          "taker_percent": 0.0,
+          "maker_bps": 0.0,
+          "taker_bps": 0.0,
+          "daily_withdrawal_limitation": 0
+        }
+      ]
+    }
+  },
+  "units": {
+    "fraction_to_percent": 100,
+    "fraction_to_bps": 10000,
+    "one_bps_fraction": 0.0001,
+    "TMN": "toman; 1 TMN = 10 IRR",
+    "fee_application": "per executed notional, per side; maker/taker is liquidity role, not buy/sell"
+  },
+  "account": {
+    "verified": false,
+    "tier": null,
+    "applied_maker_bps": null,
+    "applied_taker_bps": null,
+    "authenticated_endpoints": [
+      "https://api.wallex.ir/v1/account/fee",
+      "https://api.wallex.ir/v2/account/structured-fee"
+    ],
+    "v1_fields": [
+      "makerFeeRate",
+      "takerFeeRate",
+      "recent_days_sum"
+    ],
+    "auth": "v1/account/fee is documented under API-key protected account services; v2/account/structured-fee is an authenticated frontend account route, exact supported auth scheme not independently tested. No account request made.",
+    "caveat": "Public tier rates are conditional schedule scenarios, not this user or credit/challenge account actual rates; promotions/VIP/custom fees may differ; exact threshold boundary assignment not authenticated."
+  },
+  "credit_or_competition": {
+    "applicable_trade_fee_verified": false,
+    "trade_fee_bps": null,
+    "daily_credit_fee_verified": false,
+    "daily_credit_fee": null,
+    "competition_specific_rules_found": false,
+    "status": "unknown_without_specific_package_or_official_contest_terms",
+    "official_indexed_docs": [
+      "https://developers.wallex.ir/trade-credit/intro",
+      "https://developers.wallex.ir/trade-credit/proppackagedetails",
+      "https://developers.wallex.ir/trade-credit/subaccounthistory"
+    ],
+    "documented_package_fields": [
+      "daily_fee",
+      "daily_fee_discount",
+      "daily_fee_after_discount",
+      "final_fee",
+      "final_fee_after_discount"
+    ],
+    "caveat": "Indexed official credit docs describe separate daily credit fee and30day packages; direct doc paths returned404 in web reader. Do not infer contest fees from ordinary spot schedule."
+  },
+  "conflicts": [
+    {
+      "sources": [
+        "https://wallex.ir/buy-and-sell/btc",
+        "https://wallex.ir/buy-and-sell/eth"
+      ],
+      "published_generic_range_percent": [
+        0.2,
+        0.35
+      ],
+      "published_generic_window_months": 3,
+      "resolution": "Retain as conflicting official marketing text, do not use over current public structured30day maker/taker table."
+    }
+  ],
+  "excluded_from_trade_fee": [
+    "bid_ask_spread",
+    "slippage",
+    "market_impact",
+    "withdrawal_network_fee",
+    "fiat_deposit_withdrawal_fee",
+    "daily_credit_financing_fee"
+  ],
+  "otc": {
+    "published_trading_fee_percent": 0,
+    "scope": "Official commission page FAQ says instant/OTC buy/sell trade fee zero; executable quote spread remains a separate cost, not the spot orderbook schedule."
+  }
+}

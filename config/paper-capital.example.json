@@ -1,0 +1,6 @@
+{
+  "initial_usdt": 100,
+  "fee_bps": {"USDT": 13, "TMN": 30},
+  "paper_only": true,
+  "description": "Example virtual capital and fee scenario; not a private account snapshot or a verified current account tier."
+}

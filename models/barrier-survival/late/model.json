@@ -1,0 +1,74 @@
+{
+  "symbols": [
+    "BTCUSDT",
+    "ETHUSDT",
+    "SOLUSDT",
+    "SUSDT"
+  ],
+  "context": 10080,
+  "width": 96,
+  "layers": 3,
+  "temperature": 1.059357762336731,
+  "feature_version": "relative-v2",
+  "minimum_history_minutes": 10080,
+  "geometry_support": {
+    "min_fraction": 0.00010000500016667085,
+    "max_fraction": 0.16183424272828312,
+    "max_ratio": 8.0
+  },
+  "semantics": "price_touch",
+  "protocol_sha256": "c301e0e1acf24ce39040b4b5c5fc99f591aa104e484fed692285edf765268e39",
+  "dataset_manifest_sha256": "94cf301a15a1aacc9d0939aa2340af369f6726f8bc5905039954454b751ec204",
+  "fold": {
+    "boundaries": [
+      "2025-10-22T16:00:00+00:00",
+      "2026-08-24T00:00:00+00:00",
+      "2026-09-07T00:00:00+00:00",
+      "2026-09-21T00:00:00+00:00",
+      "2026-10-21T00:00:00+00:00"
+    ],
+    "fit": 313543,
+    "selection": 14976,
+    "calibration": 14976,
+    "test": 11566
+  },
+  "acquisition_cutoff": "2026-10-22T16:00:00+00:00",
+  "members": [
+    {
+      "file": "member-0.pt",
+      "sha256": "2ef8a1bf349faba6b15a278d05ea08fa408609957b07d97facaef8cc0ac98119",
+      "config": {
+        "symbols": 4,
+        "context": 10080,
+        "width": 96,
+        "layers": 3,
+        "query_only": false,
+        "hierarchical": true
+      }
+    },
+    {
+      "file": "member-1.pt",
+      "sha256": "a316305330b100907e15609cb3be9d40b54976c0968eb6b9d53a71b7268d3693",
+      "config": {
+        "symbols": 4,
+        "context": 10080,
+        "width": 96,
+        "layers": 3,
+        "query_only": false,
+        "hierarchical": true
+      }
+    },
+    {
+      "file": "member-2.pt",
+      "sha256": "083ae78ec2c5f984a49e28880232aae90f6b974a2ab937abe9574a1171cf4dd1",
+      "config": {
+        "symbols": 4,
+        "context": 10080,
+        "width": 96,
+        "layers": 3,
+        "query_only": false,
+        "hierarchical": true
+      }
+    }
+  ]
+}

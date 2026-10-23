@@ -1,0 +1,20 @@
+{
+  "entries": 18,
+  "closed_trades": 17,
+  "wins": 12,
+  "losses": 5,
+  "open_positions": 1,
+  "return_pct": 1.3431378718012699,
+  "max_drawdown_pct": 0.8437750928647292,
+  "fee_bps_per_side": 13.0,
+  "slippage_bps_per_side": 5.0,
+  "tp_fraction": 0.02,
+  "sl_fraction": 0.02,
+  "probability_threshold": 0.55,
+  "horizon_minutes": 1440,
+  "primary_interval_utc": [
+    "2026-09-28T09:02:00+00:00",
+    "2026-10-12T22:58:00+00:00"
+  ],
+  "interpretation": "Retrospectively selected technical-only historical simulation; open position marked, not sold; no observed historical books."
+}

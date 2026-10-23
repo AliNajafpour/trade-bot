@@ -1,0 +1,24 @@
+{
+  "upstream": "https://github.com/shiyu-coder/Kronos",
+  "source_commit": "67b630e67f6a18c9e9be918d9b4337c960db1e9a",
+  "files": {
+    "kronos.py": {
+      "origin": "model/kronos.py",
+      "origin_sha256": "0a5f90282e2039c2de0771473419715c845def154896dbd0f5747837e6241032",
+      "copied_sha256": "61ec1b5d75ee81c649c6fb82d522764e15fd2f83d168003cf4b048bd01ad8c93",
+      "changes": "Keep original KronosTokenizer and Kronos definitions only; remove global sys.path mutation and use relative module import. Predictor and sampling helpers omitted."
+    },
+    "module.py": {
+      "origin": "model/module.py",
+      "origin_sha256": "a07edbadc0e96804c8158c021bbc6063bb7cc43b34d7fc470d5c8ff2005a409f",
+      "copied_sha256": "a07edbadc0e96804c8158c021bbc6063bb7cc43b34d7fc470d5c8ff2005a409f",
+      "changes": "Unmodified byte copy."
+    },
+    "LICENSE": {
+      "origin": "model/LICENSE",
+      "origin_sha256": "acb2d194d378204e5f2be4dcd24d39ecac437903620c790c3315a96dab388fdc",
+      "copied_sha256": "acb2d194d378204e5f2be4dcd24d39ecac437903620c790c3315a96dab388fdc",
+      "changes": "Unmodified byte copy."
+    }
+  }
+}

@@ -1,0 +1,8 @@
+{
+  "run_dir": "runs/weekly-source",
+  "symbols": ["BTC/USDT", "ETH/USDT", "SOL/USDT", "S/USDT"],
+  "quote_seconds": 10,
+  "market_seconds": 1800,
+  "macro_seconds": 86400,
+  "source_config": {"timeout_seconds": 12, "max_workers": 4}
+}
