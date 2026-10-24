@@ -103,6 +103,12 @@ def validate_activation(config, binding):
     symbols = config.get('symbols')
     if not isinstance(symbols, list) or not symbols or len(set(symbols)) != len(symbols) or any(s not in DEFAULTS['symbols'] for s in symbols):
         raise ValueError('Only reviewed USDT spot markets are supported')
+    mode=config.get('decision_mode','council')
+    if mode not in ('council','weekly_model_only'):
+        raise ValueError('Unknown execution decision mode')
+    if mode=='weekly_model_only' and (symbols!=['BTCUSDT','ETHUSDT','SOLUSDT','SUSDT']
+            or any(config.get(k) for k in ('llm_chart_symbols','probability_symbols','legacy_technical_symbols'))):
+        raise ValueError('Weekly model-only mode requires exactly the original four markets')
     charts = config.get('llm_chart_symbols',[])
     if (not isinstance(charts,list) or len(charts)!=len(set(charts))
             or any(s not in symbols or s in ('BTCUSDT','ETHUSDT','SOLUSDT','SUSDT') for s in charts)):
@@ -260,6 +266,7 @@ class LiveRunner:
 
     def publish(self):
         self.state['updated_at'] = stamp()
+        self.state['decision_mode']=self.config.get('decision_mode','council')
         if self.gateway:
             self.state['positions'] = self.gateway.positions()
             orders = []
@@ -392,6 +399,8 @@ class LiveRunner:
         return frame, provenance, prediction, decision
 
     def reports(self):
+        if self.config.get('decision_mode')=='weekly_model_only':
+            return {}
         from .intelligence_reports import ReportStore
         store = ReportStore(Path(self.config['source']) / 'reports')
         return {kind: store.get(kind, stamp()) for kind in ('market', 'macro')}
@@ -595,7 +604,7 @@ class LiveRunner:
         current_reports = self.reports()
         if any((reviewed_reports[k] or {}).get('report_id') != (current_reports[k] or {}).get('report_id') for k in reviewed_reports):
             raise ValueError('Reports changed after manager review')
-        multiplier = min(number(response['risk_multiplier']), *(number((r or {}).get('assessment', {}).get('risk_multiplier', 1)) for r in current_reports.values()))
+        multiplier = min([number(response['risk_multiplier']), *(number((r or {}).get('assessment', {}).get('risk_multiplier', 1)) for r in current_reports.values())])
         if multiplier <= 0 or multiplier > 1:
             raise ValueError('No positive approved risk budget')
         config = self.arm_check()
@@ -604,6 +613,7 @@ class LiveRunner:
         ask = normalize(quote['ask'], snapshot['markets'][symbol]['tickSize'])
         evidence = dict(decision_at=stamp(), horizon_minutes=1440, execution_ask=ask, tp=prediction['tp'], sl=prediction['sl'],
                         support_flags=prediction['support_flags'], **{k: forecast[k] for k in ('p_tp_first', 'p_sl_first', 'p_no_touch')})
+        evidence['decision_mode']=config.get('decision_mode','council')
         if row.get('manager_receipt'):
             receipt_path=Path(row['manager_receipt']).resolve()
             evidence.update(manager_receipt_path=str(receipt_path),manager_receipt_sha256=hashlib.sha256(receipt_path.read_bytes()).hexdigest())
@@ -694,6 +704,11 @@ class LiveRunner:
                 continue
             try:
                 position = next((p for p in self.gateway.positions() if p['symbol'] == symbol), None) if self.gateway else None
+                model_only=self.config.get('decision_mode')=='weekly_model_only'
+                if model_only and position:
+                    row.update(status='holding_model_only',reason='نگهداری تا TP یا SL؛ بدون خروج زمانی و تصمیم مدیر',
+                        position_barriers=dict(tp=position['target_price'],sl=position['stop_price']))
+                    continue
                 frame, provenance, prediction, decision = await asyncio.to_thread(self.forecast, symbol, snapshot, position)
                 row.update(prediction=prediction, history_provenance=provenance)
                 quote = snapshot['quotes'][symbol]
@@ -706,6 +721,10 @@ class LiveRunner:
                     row['status'] = 'eligible_disabled' if not position else 'holding_disabled'
                     continue
                 self.arm_check()
+                if model_only:
+                    row['reason']='ورود با شرط احتمال TP بالاتر از ۵۵٪؛ بدون مدیر زبانی'
+                    await self.enter(symbol,dict(action='enter',risk_multiplier=1),{},row)
+                    continue
                 # Each symbol gets a fresh account/book snapshot, not an earlier scan's price.
                 snapshot = await self.exchange.snapshot()
                 owned = self.gateway.positions() if self.gateway else []

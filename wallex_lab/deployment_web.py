@@ -45,6 +45,7 @@ class Controls:
         account = source.get('account') or {}
         result['account'] = {key: account[key] for key in ('observed_at', 'balances', 'fees') if key in account}
         result['enabled'] = config.get('enabled') is True
+        result['decision_mode']=config.get('decision_mode','council')
         result['max_capital_usdt'] = config.get('max_capital_usdt')
         result['stop_capabilities_verified'] = config.get('stop_capabilities_verified') is True
         result['user_action'] = config.get('user_action')

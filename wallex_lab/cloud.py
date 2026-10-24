@@ -31,7 +31,8 @@ def bootstrap(data_dir):
         config['enabled']=False;save_json(execution,config)
     old_model=ROOT/'models/barrier-survival/late'
     old_hash=hashlib.sha256((old_model/'model.json').read_bytes()).hexdigest()
-    if (config.get('enabled') is False and not config.get('universe_upgrade_from_sha256')
+    if (config.get('decision_mode','council')=='council'
+            and config.get('enabled') is False and not config.get('universe_upgrade_from_sha256')
             and config.get('symbols')==['BTCUSDT','ETHUSDT','SOLUSDT','SUSDT']
             and len(template['symbols'])==10 and config.get('model_metadata_sha256')==old_hash):
         # Upgrade only the recognized, disabled four-asset bundle; keep the owner's account and risk settings.
@@ -57,6 +58,29 @@ def bootstrap(data_dir):
         from .context import save_json
         config['adaptive_learning']=True
         save_json(execution,config)
+    preset=os.environ.get('WALLEX_EXECUTION_PRESET','')
+    if preset not in ('','weekly_model_only'):
+        raise ValueError('Unknown execution preset')
+    if preset=='weekly_model_only':
+        selected=dict(decision_mode='weekly_model_only',symbols=['BTCUSDT','ETHUSDT','SOLUSDT','SUSDT'],
+            llm_chart_symbols=[],probability_symbols=[],legacy_technical_symbols=[],adaptive_learning=False,
+            scan_seconds=60,**identity)
+        if any(config.get(key)!=value for key,value in selected.items()):
+            if config.get('enabled') is not False:
+                raise ValueError('Disable execution before changing the decision preset')
+            if (Path(config['run_dir'])/'orders.sqlite').exists():
+                from .live_execution import Gateway
+                ledger=Gateway(Path(config['run_dir']),config,None)
+                try:
+                    if ledger.positions() or any(row['state']!='abandoned' and (
+                            row['state']!='acknowledged' or not isinstance(row['response'],dict)
+                            or row['response'].get('active') is not False)
+                            for row in (ledger.order(r['id']) for r in ledger.db.execute('SELECT id FROM orders').fetchall())):
+                        raise ValueError('Reconcile all positions and orders before changing the decision preset')
+                finally:ledger.db.close()
+            from .context import save_json
+            config.update(selected)
+            save_json(execution,config)
     source=json.loads((ROOT/'config/weekly-source.example.json').read_text('utf-8'))
     source['run_dir']=str(data/'source')
     source['symbols']=[s[:-4]+'/USDT' for s in config['symbols']]
@@ -83,8 +107,9 @@ def main():
         nonlocal stop
         stop=True
     signal.signal(signal.SIGTERM,stopping);signal.signal(signal.SIGINT,stopping)
-    commands=[
-        [sys.executable,'-B','-m','wallex_lab.cloud','source'],
+    selected=json.loads(config.read_text('utf-8'))
+    commands=[] if selected.get('decision_mode')=='weekly_model_only' else [[sys.executable,'-B','-m','wallex_lab.cloud','source']]
+    commands += [
         [sys.executable,'-B','-m','wallex_lab.live_runner','--config',str(config)],
         [sys.executable,'-B','-m','wallex_lab.deployment_web','--config',str(config),'--host','0.0.0.0','--port',os.environ.get('PORT','8080')],
     ]
