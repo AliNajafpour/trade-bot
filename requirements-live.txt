@@ -8,9 +8,3 @@ python-dotenv==1.2.4
 requests==2.34.2
 matplotlib==3.11.2
 Pillow==13.0.0
-chronos-forecasting==2.3.2
-transformers==5.16.1
-accelerate==1.14.0
-einops==0.8.2
-safetensors==0.8.0
-huggingface-hub==1.29.0

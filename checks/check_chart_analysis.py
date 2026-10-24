@@ -40,7 +40,9 @@ async def check(mode='llm_chart'):
         runner=LiveRunner(path)
         runner.exchange=ArmedExchange(raw,path)
         runner.gateway=LiveGateway(root,config,runner.exchange)
-        runner.reports=lambda:dict(market=None,macro=None)
+        runner.reports=lambda:dict(market=dict(report_id='public-report',status='partial',
+            assessment=dict(market_bias='neutral',confidence=.5,risk_multiplier=1),
+            coverage=dict(status='partial'),receipt=dict(repeated_transport_metadata='not-needed-by-manager')),macro=None)
         calls=[];overlays=[]
         def forecast(symbol,account,position=None):
             assert position is None,'OFF analysis read private positions'
@@ -57,6 +59,8 @@ async def check(mode='llm_chart'):
             overlays.append(kwargs['signals'])
             return root/'chart.png'
         def provider(packet,prompt,schema,output,**kwargs):
+            assert 'receipt' not in packet['reports']['market'],'Manager input repeats the report inference receipt'
+            assert packet['reports']['market']['coverage']['status']=='partial'
             calls.append((deepcopy(packet),schema))
             output.mkdir(parents=True,exist_ok=True)
             response=dict(action='enter',risk_multiplier=1.,reason='Offline chart fixture')

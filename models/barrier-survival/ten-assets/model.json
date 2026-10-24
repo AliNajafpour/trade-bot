@@ -1,0 +1,413 @@
+{
+  "symbols": [
+    "BTCUSDT",
+    "ETHUSDT",
+    "SOLUSDT",
+    "SUSDT",
+    "XRPUSDT",
+    "DOGEUSDT",
+    "ADAUSDT",
+    "BNBUSDT",
+    "TRXUSDT",
+    "LTCUSDT"
+  ],
+  "context": 10080,
+  "width": 96,
+  "layers": 3,
+  "temperature": 1.059357762336731,
+  "feature_version": "relative-v2",
+  "minimum_history_minutes": 10080,
+  "geometry_support": {
+    "min_fraction": 0.00010000500016667085,
+    "max_fraction": 0.16183424272828312,
+    "max_ratio": 8.0
+  },
+  "semantics": "price_touch",
+  "protocol_sha256": "10801dfc1427b8d4e1c2f40c42a5b1e306d7b954c4e1fac8df9139d4c6fcdb93",
+  "dataset_manifest_sha256": "517e412d29fd4d2c3f79c4ca4e059b5b5b30b2098fb05d859b209230156a7bee",
+  "fold": {
+    "boundaries": [
+      "2025-10-22T16:00:00+00:00",
+      "2026-08-24T00:00:00+00:00",
+      "2026-09-07T00:00:00+00:00",
+      "2026-09-21T00:00:00+00:00",
+      "2026-10-21T00:00:00+00:00"
+    ],
+    "fit": 313543,
+    "selection": 14976,
+    "calibration": 14976,
+    "test": 11566
+  },
+  "acquisition_cutoff": "2026-10-22T16:00:00+00:00",
+  "members": [
+    {
+      "file": "member-0.pt",
+      "sha256": "4b92cc2c8eb955883c80f61b179877234f394c93d1f2fbe5341cd801fb1b137a",
+      "config": {
+        "symbols": 10,
+        "context": 10080,
+        "width": 96,
+        "layers": 3,
+        "query_only": false,
+        "hierarchical": true
+      }
+    },
+    {
+      "file": "member-1.pt",
+      "sha256": "87390cb136c35def45ae9989c4350879dbf2188f5f29db26b5d4f1b45fc095ad",
+      "config": {
+        "symbols": 10,
+        "context": 10080,
+        "width": 96,
+        "layers": 3,
+        "query_only": false,
+        "hierarchical": true
+      }
+    },
+    {
+      "file": "member-2.pt",
+      "sha256": "6dfba6ea7dc8f4e7db97a9c06e1f236711aac673535175b08f685036985f3326",
+      "config": {
+        "symbols": 10,
+        "context": 10080,
+        "width": 96,
+        "layers": 3,
+        "query_only": false,
+        "hierarchical": true
+      }
+    }
+  ],
+  "temperatures_by_symbol": {
+    "BTCUSDT": 1.059357762336731,
+    "ETHUSDT": 1.059357762336731,
+    "SOLUSDT": 1.059357762336731,
+    "SUSDT": 1.059357762336731,
+    "XRPUSDT": 1.0504080057144165,
+    "DOGEUSDT": 0.9919453263282776,
+    "ADAUSDT": 1.0161418914794922,
+    "BNBUSDT": 0.9146625399589539,
+    "TRXUSDT": 0.8927736282348633,
+    "LTCUSDT": 1.0594799518585205
+  },
+  "base_metadata_sha256": "cf244b809d5143f1f6e74e385a653967f0d4d4aad6b9d66afff506159c372134",
+  "model_family": "Weekly/late 10-asset embedding extension",
+  "extension_provenance": {
+    "created_utc": "2026-10-24T21:00:28.304911+00:00",
+    "base_metadata_sha256": "cf244b809d5143f1f6e74e385a653967f0d4d4aad6b9d66afff506159c372134",
+    "historical_helper_sha256": "06d458f4e28272fd71b544a382cf8e6473b4cc189fa664b2aa4431717ad8e33b",
+    "historical_helper_source_sha256": "7b3379663885243e6461c9c700f17177b323881965bf17fee8aaed9a0a7e09a9",
+    "driver_sha256": "7cb19cf9784cfc7c001484c04bc841668547920af71a941708ef28c0063c5c30",
+    "cached_protocol_sha256": "3b78f2e12c04bc81c71d0a535d16c42cc7e2dc332a9a28d9ece5962892183085",
+    "cached_arrays_sha256": "3770d9b90c7091138f0a38ac5192a20fe1e80aa823755d3b6f491a04bb78c894",
+    "sources": [
+      {
+        "symbol": "XRPUSDT",
+        "source_manifest_sha256": "5e9623a214b372a4adbbf6469650e833f8abe8602b4563fb9dbec148024c9e66",
+        "values_sha256": "1bd28c0991bc868d55af556bfcde0e215a8f0234b07a608ff7b748bbe89a1d04",
+        "times_sha256": "e89acedf7ff2fa6f35a61426f6a7fbaeb1bc36cb02e36ecaaf17d4e3e1866ea1",
+        "rows": 2002960,
+        "quality": {
+          "expected_minutes": 2003040,
+          "observed_minutes": 2002960,
+          "missing_minutes": 80,
+          "gap_count": 1,
+          "internal_missing_minutes": 80,
+          "leading_missing_minutes": 0,
+          "trailing_missing_minutes": 0,
+          "coverage_fraction_1m": 0.9999600607077243,
+          "coverage_complete": false,
+          "zero_volume_fraction": 3.594679873786796e-05,
+          "zero_trade_fraction": 3.594679873786796e-05,
+          "flat_fraction": 0.0003270160162958821
+        }
+      },
+      {
+        "symbol": "DOGEUSDT",
+        "source_manifest_sha256": "5e9623a214b372a4adbbf6469650e833f8abe8602b4563fb9dbec148024c9e66",
+        "values_sha256": "75d97a0b6611af879026b04d6f3c571a1e0a5ffb4975049cb25fc689d4b0bd7a",
+        "times_sha256": "e89acedf7ff2fa6f35a61426f6a7fbaeb1bc36cb02e36ecaaf17d4e3e1866ea1",
+        "rows": 2002960,
+        "quality": {
+          "expected_minutes": 2003040,
+          "observed_minutes": 2002960,
+          "missing_minutes": 80,
+          "gap_count": 1,
+          "internal_missing_minutes": 80,
+          "leading_missing_minutes": 0,
+          "trailing_missing_minutes": 0,
+          "coverage_fraction_1m": 0.9999600607077243,
+          "coverage_complete": false,
+          "zero_volume_fraction": 9.585812996764788e-05,
+          "zero_trade_fraction": 9.585812996764788e-05,
+          "flat_fraction": 0.0031827894715820587
+        }
+      },
+      {
+        "symbol": "ADAUSDT",
+        "source_manifest_sha256": "5e9623a214b372a4adbbf6469650e833f8abe8602b4563fb9dbec148024c9e66",
+        "values_sha256": "0537c0d0ecdedeb07d73a52d70c8dd26e657ccba4dd62172a64e67417ec2892c",
+        "times_sha256": "e89acedf7ff2fa6f35a61426f6a7fbaeb1bc36cb02e36ecaaf17d4e3e1866ea1",
+        "rows": 2002960,
+        "quality": {
+          "expected_minutes": 2003040,
+          "observed_minutes": 2002960,
+          "missing_minutes": 80,
+          "gap_count": 1,
+          "internal_missing_minutes": 80,
+          "leading_missing_minutes": 0,
+          "trailing_missing_minutes": 0,
+          "coverage_fraction_1m": 0.9999600607077243,
+          "coverage_complete": false,
+          "zero_volume_fraction": 0.0008662179973639014,
+          "zero_trade_fraction": 0.0008662179973639014,
+          "flat_fraction": 0.021351899189199983
+        }
+      },
+      {
+        "symbol": "BNBUSDT",
+        "source_manifest_sha256": "5e9623a214b372a4adbbf6469650e833f8abe8602b4563fb9dbec148024c9e66",
+        "values_sha256": "3fa2abc705f019ec2e5674e734f47be518702eb779c119a59fb835ec486cd684",
+        "times_sha256": "e89acedf7ff2fa6f35a61426f6a7fbaeb1bc36cb02e36ecaaf17d4e3e1866ea1",
+        "rows": 2002960,
+        "quality": {
+          "expected_minutes": 2003040,
+          "observed_minutes": 2002960,
+          "missing_minutes": 80,
+          "gap_count": 1,
+          "internal_missing_minutes": 80,
+          "leading_missing_minutes": 0,
+          "trailing_missing_minutes": 0,
+          "coverage_fraction_1m": 0.9999600607077243,
+          "coverage_complete": false,
+          "zero_volume_fraction": 3.594679873786796e-05,
+          "zero_trade_fraction": 3.594679873786796e-05,
+          "flat_fraction": 5.9412070136198423e-05
+        }
+      },
+      {
+        "symbol": "TRXUSDT",
+        "source_manifest_sha256": "3bc20af95c7183d638ad08dfff81572b9b811433d6f64511e51b9dd870c84fca",
+        "values_sha256": "a56afd5981de0e59c9f30bd7d8e35ebcd2a2b26a81a246a0c442e1d8d1b422eb",
+        "times_sha256": "47295b6188db7e4f4129a599307d21d45238e445e7b9467afb3224ab0a31fc8d",
+        "rows": 527040,
+        "quality": {
+          "expected_minutes": 527040,
+          "observed_minutes": 527040,
+          "missing_minutes": 0,
+          "gap_count": 0,
+          "internal_missing_minutes": 0,
+          "leading_missing_minutes": 0,
+          "trailing_missing_minutes": 0,
+          "coverage_fraction_1m": 1.0,
+          "coverage_complete": true,
+          "zero_volume_fraction": 1.8973891924711598e-06,
+          "zero_trade_fraction": 1.8973891924711598e-06,
+          "flat_fraction": 0.0032654068002428657
+        }
+      },
+      {
+        "symbol": "LTCUSDT",
+        "source_manifest_sha256": "3bc20af95c7183d638ad08dfff81572b9b811433d6f64511e51b9dd870c84fca",
+        "values_sha256": "152b9e05448368a684a558803e9858ac20ad60a7ba9dd2ad0960f064aee6e6b4",
+        "times_sha256": "47295b6188db7e4f4129a599307d21d45238e445e7b9467afb3224ab0a31fc8d",
+        "rows": 527040,
+        "quality": {
+          "expected_minutes": 527040,
+          "observed_minutes": 527040,
+          "missing_minutes": 0,
+          "gap_count": 0,
+          "internal_missing_minutes": 0,
+          "leading_missing_minutes": 0,
+          "trailing_missing_minutes": 0,
+          "coverage_fraction_1m": 1.0,
+          "coverage_complete": true,
+          "zero_volume_fraction": 5.692167577413479e-06,
+          "zero_trade_fraction": 5.692167577413479e-06,
+          "flat_fraction": 0.002910595021250759
+        }
+      }
+    ],
+    "boundaries": [
+      "2025-10-29",
+      "2026-08-24",
+      "2026-09-07",
+      "2026-09-21",
+      "2026-10-23"
+    ],
+    "purge_minutes": 1440,
+    "context_minutes": 10080,
+    "audit": [
+      {
+        "symbol": "XRPUSDT",
+        "origins": 1420,
+        "recomputed_origins": 12,
+        "roles": {
+          "fit": 1192,
+          "selection": 52,
+          "calibration": 52,
+          "test": 124
+        }
+      },
+      {
+        "symbol": "DOGEUSDT",
+        "origins": 1420,
+        "recomputed_origins": 12,
+        "roles": {
+          "fit": 1192,
+          "selection": 52,
+          "calibration": 52,
+          "test": 124
+        }
+      },
+      {
+        "symbol": "ADAUSDT",
+        "origins": 1420,
+        "recomputed_origins": 12,
+        "roles": {
+          "fit": 1192,
+          "selection": 52,
+          "calibration": 52,
+          "test": 124
+        }
+      },
+      {
+        "symbol": "BNBUSDT",
+        "origins": 1420,
+        "recomputed_origins": 12,
+        "roles": {
+          "fit": 1192,
+          "selection": 52,
+          "calibration": 52,
+          "test": 124
+        }
+      },
+      {
+        "symbol": "TRXUSDT",
+        "origins": 1420,
+        "recomputed_origins": 12,
+        "roles": {
+          "fit": 1192,
+          "selection": 52,
+          "calibration": 52,
+          "test": 124
+        }
+      },
+      {
+        "symbol": "LTCUSDT",
+        "origins": 1420,
+        "recomputed_origins": 12,
+        "roles": {
+          "fit": 1192,
+          "selection": 52,
+          "calibration": 52,
+          "test": 124
+        }
+      }
+    ],
+    "hardware": "NVIDIA GeForce RTX 3050 6GB Laptop GPU",
+    "torch": "2.13.0+cu130",
+    "training": "Only six new asset embedding rows per member; original four rows and all other parameters frozen",
+    "limitations": [
+      "Sparse six-hour origins; correlated queries are not independent samples.",
+      "Historical price-touch evaluation is not profitability or execution evidence.",
+      "Embedding-only adaptation has lower capacity than full retraining.",
+      "Binance training to live venues has unmeasured calibration shift."
+    ],
+    "training_sources": {
+      "actual_loaded_training_sources": {
+        "wallex_lab/barrier_survival.py": "80b67fce8bf56567c396aeef386e5d57637617ed88bce9f2ef279e8ca73fc612",
+        "wallex_lab/barrier_dense.py": "e51fab16a57d10c6bb4b63e132ffee6b479d343ea351791355719f5aa37e058a",
+        "wallex_lab/barrier_dataset.py": "14bb34b3cf6f16f892b4330146641741975db5a844f49bb34a2ba97fb741e9d1",
+        "scripts/train_barrier_survival.py": "19247f5db3653dab44ca4719c476f7489f9ba039017f0c7feac4707b9da97879"
+      },
+      "note": "The cached historical protocol source hash for barrier_survival.py differs; current root and production implementations match outside parent per-symbol calibration support. Architecture, forward, labels and loss are unchanged."
+    },
+    "metadata_finalizer_sha256": "6d4a8ee717a4db0d7a1349f1abfa93a3891c94cd71473fcb7ee41dd976f60d7d",
+    "dataset_manifest_sha256": "517e412d29fd4d2c3f79c4ca4e059b5b5b30b2098fb05d859b209230156a7bee"
+  },
+  "extension_fits": [
+    {
+      "member": 0,
+      "selected_epoch": 8,
+      "selection_nll": 1.5878124237060547,
+      "seconds": 383.15657250000004
+    },
+    {
+      "member": 1,
+      "selected_epoch": 8,
+      "selection_nll": 1.5754960775375366,
+      "seconds": 346.74762929999997
+    },
+    {
+      "member": 2,
+      "selected_epoch": 8,
+      "selection_nll": 1.576392650604248,
+      "seconds": 357.3971901999994
+    }
+  ],
+  "historical_test_summary": [
+    {
+      "symbol": "XRPUSDT",
+      "calibration_origins": 52,
+      "test_origins": 124,
+      "temperature": 1.0504080057144165,
+      "raw_nll": 1.5074540376663208,
+      "calibrated_nll": 1.5115282535552979,
+      "untrained_mean_embedding_nll": 1.6311607360839844
+    },
+    {
+      "symbol": "DOGEUSDT",
+      "calibration_origins": 52,
+      "test_origins": 124,
+      "temperature": 0.9919453263282776,
+      "raw_nll": 1.5115450620651245,
+      "calibrated_nll": 1.5109772682189941,
+      "untrained_mean_embedding_nll": 1.6199578046798706
+    },
+    {
+      "symbol": "ADAUSDT",
+      "calibration_origins": 52,
+      "test_origins": 124,
+      "temperature": 1.0161418914794922,
+      "raw_nll": 1.491935133934021,
+      "calibrated_nll": 1.492318868637085,
+      "untrained_mean_embedding_nll": 1.600339412689209
+    },
+    {
+      "symbol": "BNBUSDT",
+      "calibration_origins": 52,
+      "test_origins": 124,
+      "temperature": 0.9146625399589539,
+      "raw_nll": 1.5341068506240845,
+      "calibrated_nll": 1.529436707496643,
+      "untrained_mean_embedding_nll": 1.690588116645813
+    },
+    {
+      "symbol": "TRXUSDT",
+      "calibration_origins": 52,
+      "test_origins": 124,
+      "temperature": 0.8927736282348633,
+      "raw_nll": 1.5766513347625732,
+      "calibrated_nll": 1.568602204322815,
+      "untrained_mean_embedding_nll": 1.8723199367523193
+    },
+    {
+      "symbol": "LTCUSDT",
+      "calibration_origins": 52,
+      "test_origins": 124,
+      "temperature": 1.0594799518585205,
+      "raw_nll": 1.4909940958023071,
+      "calibrated_nll": 1.4968912601470947,
+      "untrained_mean_embedding_nll": 1.6113486289978027
+    }
+  ],
+  "extension_fold_boundaries": [
+    "2025-10-29",
+    "2026-08-24",
+    "2026-09-07",
+    "2026-09-21",
+    "2026-10-23"
+  ],
+  "fold_scope": "fold describes original four-asset Weekly/late base; extension_fold_boundaries describes six new assets",
+  "provenance_file": "provenance.json"
+}

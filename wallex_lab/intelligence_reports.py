@@ -18,11 +18,11 @@ ASSESSMENT_SCHEMA = {
         "risk_regime": {"type": "string", "enum": ["risk_on", "balanced", "risk_off", "uncertain"]},
         "confidence": {"type": "number", "minimum": 0, "maximum": 1},
         "risk_multiplier": {"type": "number", "minimum": 0, "maximum": 1},
-        "summary": {"type": "string", "minLength": 1, "maxLength": 6000},
-        "key_points": {"type": "array", "items": {"type": "string", "minLength": 1}, "maxItems": 30},
-        "evidence": {"type": "array", "items": {"type": "string", "minLength": 1}, "minItems": 1},
+        "summary": {"type": "string", "minLength": 1, "maxLength": 1800},
+        "key_points": {"type": "array", "items": {"type": "string", "minLength": 1}, "maxItems": 12},
+        "evidence": {"type": "array", "items": {"type": "string", "minLength": 1}, "minItems": 1, "maxItems": 16},
         "invalidation_conditions": {"type": "array", "items": {"type": "string", "minLength": 1},
-                                    "maxItems": 30}},
+                                    "maxItems": 8}},
     "required": ["market_bias", "risk_regime", "confidence", "risk_multiplier", "summary",
                  "key_points", "evidence", "invalidation_conditions"], "additionalProperties": False}
 
@@ -39,7 +39,13 @@ PROMPT = (
     "confidence when appropriate. Do not fabricate facts, surprises, prices, or executions. "
     "Explain the outlook in summary and key_points and specify source-grounded invalidation "
     "conditions. Macro describes the slow economic regime; market describes recent cross-asset "
-    "and news context. This report is advisory and cannot authorize an order."
+    "and news context. Receipt references resolve through bundle.source_receipts; HTTP transport "
+    "headers are intentionally omitted, while all supplied observations and revisions remain. "
+    "The coverage includes analysis_news_selection: disclose omitted collected stories; the "
+    "selected stories span publishers and favor their most recent items. "
+    "Keep the report concise: summarize material changes rather than listing every news item; "
+    "use at most twelve key points and sixteen evidence IDs. "
+    "This report is advisory and cannot authorize an order."
 )
 
 
@@ -72,6 +78,42 @@ def _interval(value):
 
 def _digest(value):
     return hashlib.sha256(llm._json(value).encode("utf-8")).hexdigest()
+
+
+def evidence_for_model(bundle):
+    """Retain observations, timestamps and revisions without repeated transport headers."""
+    news=bundle['news']
+    if len(news)>40:
+        groups={}
+        for row in sorted(news,key=lambda r:r.get('published_at') or r['available_at'],reverse=True):
+            groups.setdefault(row.get('source','unknown'),[]).append(row)
+        news=[]
+        for offset in range(max(map(len,groups.values()))):
+            for group in groups.values():
+                if offset<len(group):news.append(group[offset])
+                if len(news)==40:break
+            if len(news)==40:break
+    receipts={}
+    def compact(value):
+        if isinstance(value,list):return [compact(item) for item in value]
+        if not isinstance(value,dict):return value
+        result={}
+        for key,item in value.items():
+            if key in ('source_receipt','first_source_receipt') and isinstance(item,dict):
+                receipt={name:item[name] for name in ('url','method','tool','status','sha256',
+                    'request_started_utc','response_received_utc','authenticated') if name in item}
+                reference=_digest(receipt);receipts[reference]=receipt
+                result[key+'_ref']=reference
+            else:result[key]=compact(item)
+        return result
+    result=compact({key:news if key=='news' else bundle.get(key) for key in ('kind','available_at','facts','news','coverage')})
+    selection=dict(collected_news=len(bundle['news']),analyzed_news=len(news),omitted_news=len(bundle['news'])-len(news),
+        method='Most recent per publisher, round-robin, at most40; complete source bundle retained')
+    result['coverage']['analysis_news_selection']=selection
+    if selection['omitted_news'] and result['coverage']['status']=='complete':
+        result['coverage'].update(status='partial',source_collection_status='complete')
+    result['source_receipts']=receipts
+    return result
 
 
 class ReportStore:
@@ -173,6 +215,7 @@ class ReportStore:
                 with bundle_path.open("x", encoding="utf-8") as handle:
                     handle.write(llm._json(bundle))
             generated, receipt, assessment, provider_name = cutoff, None, None, None
+            report_coverage=deepcopy(bundle['coverage'])
             status = "source_unavailable"
             error = None
             if ids and bundle["coverage"]["status"] != "unavailable":
@@ -181,12 +224,13 @@ class ReportStore:
                     selected = provider if provider is not None else provider_from_env()
                     provider_name = getattr(selected, "cache_identity", {}).get("provider", type(selected).__name__)
                     # The collector retains unfiltered observations solely for future refresh history.
-                    evidence_bundle = {key: bundle.get(key) for key in
-                                       ("kind", "available_at", "facts", "news", "coverage")}
+                    evidence_bundle = evidence_for_model(bundle)
+                    report_coverage=evidence_bundle['coverage']
                     schema = deepcopy(ASSESSMENT_SCHEMA)
-                    schema["properties"]["evidence"]["items"]["enum"] = sorted(ids)
+                    schema["properties"]["evidence"]["items"]["enum"] = sorted(item['id'] for item in evidence_bundle['facts']+evidence_bundle['news'])
+                    options={'reasoning_effort':'low'} if provider is None else {}
                     returned = selected({"kind": kind, "asof": cutoff.isoformat(), "bundle": evidence_bundle},
-                                        PROMPT.format(kind=kind), schema, directory / "inference")
+                                        PROMPT.format(kind=kind), schema, directory / "inference",**options)
                     if type(returned) is not dict:
                         raise ValueError("Provider must return a receipt object")
                     llm._json(returned)
@@ -202,7 +246,7 @@ class ReportStore:
                     if not result["summary"].strip() or not set(result["evidence"]) <= ids:
                         raise ValueError("Assessment requires a summary and supplied evidence IDs")
                     assessment = result
-                    status = "ok" if bundle["coverage"]["status"] == "complete" else "partial"
+                    status = "ok" if report_coverage["status"] == "complete" else "partial"
                 except Exception as exc:
                     # Providers may throw messages containing credentials; retain only the type.
                     error = "Report inference or validation failed: " + type(exc).__name__
@@ -214,7 +258,7 @@ class ReportStore:
                 raise ValueError("Report expiry exceeds timestamp range") from exc
             report = {"report_id": uuid4().hex, "kind": kind, "generated_at": generated.isoformat(),
                       "valid_until": valid_until, "status": status, "assessment": assessment,
-                      "coverage": bundle["coverage"], "source_bundle_sha256": digest,
+                      "coverage": report_coverage, "source_bundle_sha256": digest,
                       "provider": provider_name, "receipt": receipt}
             if error:
                 report["error"] = error

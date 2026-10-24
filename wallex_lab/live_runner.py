@@ -405,6 +405,16 @@ class LiveRunner:
         store = ReportStore(Path(self.config['source']) / 'reports')
         return {kind: store.get(kind, stamp()) for kind in ('market', 'macro')}
 
+    def update_report_status(self):
+        try:
+            self.state['reports']={kind:dict({key:report[key] for key in ('report_id','status','generated_at','valid_until','coverage')},
+                actual_model=(report.get('receipt') or {}).get('actual_model'),
+                usage={key:value for key,value in ((report.get('receipt') or {}).get('usage') or {}).items()
+                    if key in ('prompt_tokens','completion_tokens','total_tokens','cost')})
+                if report else dict(status='unavailable_or_expired') for kind,report in self.reports().items()}
+        except (OSError,ValueError,KeyError,TypeError,AttributeError) as error:
+            self.state['reports']=dict(status='blocked',error_type=type(error).__name__)
+
     def chart_forecast(self, symbol, snapshot, position=None):
         import pandas as pd
         import numpy as np
@@ -534,7 +544,9 @@ class LiveRunner:
                       risk_policy=dict({k:self.config[k] for k in ('max_position_fraction', 'risk_per_trade_fraction', 'max_account_stop_risk_fraction', 'max_open_positions')},
                                        min_notional=snapshot['markets'][symbol]['minNotional'],
                                        authenticated_taker_fee=snapshot['fees'][symbol]['takerFeeRate']),
-                      reports=reports, history_provenance=provenance, admission=gates)
+                      reports={kind:{key:report[key] for key in ('report_id','status','generated_at','valid_until',
+                          'assessment','coverage','source_bundle_sha256') if key in report} if report else None
+                          for kind,report in reports.items()}, history_provenance=provenance, admission=gates)
         # Only replace the account mode sentence; retain the reviewed gates and no-tool contract.
         prompt = PROMPT.replace('one isolated SPOT PAPER experiment', 'one user-armed cash-funded REAL SPOT account')
         if prediction.get('technical_mode')=='barrier_pretrained8':
@@ -779,6 +791,7 @@ class LiveRunner:
                             self.publish()
                             if time.monotonic()>=next_learning:
                                 self.update_learning()
+                                self.update_report_status()
                                 next_learning=time.monotonic()+60
                             if time.monotonic() >= next_scan:
                                 await self.scan(snapshot)

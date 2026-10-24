@@ -16,6 +16,8 @@
 !models/barrier-survival/late/**
 !models/barrier-survival/pretrained8/
 !models/barrier-survival/pretrained8/**
+!models/barrier-survival/ten-assets/
+!models/barrier-survival/ten-assets/**
 !scripts/
 !scripts/foundation_models.py
 !third_party/

@@ -61,6 +61,13 @@ async def check():
         runner.reports = lambda: dict(market=None, macro=None)
         runner.review = lambda *_: (_ for _ in ()).throw(AssertionError('Disabled runner called the manager'))
         try:
+            runner.update_report_status()
+            assert all(r['status']=='unavailable_or_expired' for r in runner.state['reports'].values())
+            reports=runner.reports
+            runner.reports=lambda:(_ for _ in ()).throw(ValueError('Corrupt optional report fixture'))
+            runner.update_report_status()
+            assert runner.state['reports']['status']=='blocked' and runner.monitor_ok
+            runner.reports=reports
             ten=snapshot()
             for symbol in DEFAULTS['symbols']:
                 ten['markets'][symbol]=dict(ten['markets']['BTCUSDT'],symbol=symbol,baseAsset=symbol[:-4])

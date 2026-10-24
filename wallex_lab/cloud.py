@@ -59,12 +59,19 @@ def bootstrap(data_dir):
         config['adaptive_learning']=True
         save_json(execution,config)
     preset=os.environ.get('WALLEX_EXECUTION_PRESET','')
-    if preset not in ('','weekly_model_only'):
+    if preset not in ('','weekly_model_only','weekly_council_ten'):
         raise ValueError('Unknown execution preset')
-    if preset=='weekly_model_only':
+    if preset in ('weekly_model_only','weekly_council_ten'):
         selected=dict(decision_mode='weekly_model_only',symbols=['BTCUSDT','ETHUSDT','SOLUSDT','SUSDT'],
             llm_chart_symbols=[],probability_symbols=[],legacy_technical_symbols=[],adaptive_learning=False,
             scan_seconds=60,**identity)
+        if preset=='weekly_council_ten':
+            extended=ROOT/'models/barrier-survival/ten-assets'
+            raw=(extended/'model.json').read_bytes();metadata=json.loads(raw)
+            if metadata.get('symbols')!=template['symbols'] or metadata.get('base_metadata_sha256')!=old_hash:
+                raise ValueError('Ten-asset bundle must extend the original Weekly/late model')
+            selected.update(decision_mode='council',symbols=template['symbols'],adaptive_learning=True,
+                model=str(extended),model_metadata_sha256=hashlib.sha256(raw).hexdigest())
         if any(config.get(key)!=value for key,value in selected.items()):
             if config.get('enabled') is not False:
                 raise ValueError('Disable execution before changing the decision preset')
@@ -84,6 +91,8 @@ def bootstrap(data_dir):
     source=json.loads((ROOT/'config/weekly-source.example.json').read_text('utf-8'))
     source['run_dir']=str(data/'source')
     source['symbols']=[s[:-4]+'/USDT' for s in config['symbols']]
+    if preset=='weekly_council_ten':
+        source['symbols']=[]  # Live execution already collects authenticated Wallex books.
     source['source_config'].update(timeout_seconds=12,max_workers=3)
     return execution,source
 

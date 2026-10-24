@@ -12,7 +12,7 @@ import torch
 sys.path.insert(0,str(Path(__file__).resolve().parents[1]))
 from wallex_lab.barrier_dense import IndexedBarrierDataset, batch_history
 from wallex_lab.barrier_dataset import barrier_query, sha256, write_json, HORIZONS
-from wallex_lab.barrier_survival import SurvivalPredictor, incidence
+from wallex_lab.barrier_survival import SurvivalPredictor
 from wallex_lab.barrier_only import simulate
 from wallex_lab.first_touch import FirstTouchBook
 
@@ -68,8 +68,9 @@ def predict_grid(data,model,indices,batch_size,output):
         q=np.stack([barrier_query(ref,ref*(1+np.array(GEOMETRY)[:,0]),ref*(1-np.array(GEOMETRY)[:,1]),s,ref)
             for s,ref in zip(sigma,reference)])
         with torch.inference_mode():
-            x_tensor=torch.from_numpy(x);q_tensor=torch.from_numpy(q);symbols=torch.as_tensor(assets.astype(np.int64))
-            probabilities=torch.stack([incidence(m(x_tensor,q_tensor,symbols)/model.metadata['temperature']) for m in model.models]).mean(0).numpy()
+            x_tensor=torch.from_numpy(x);q_tensor=torch.from_numpy(q)
+            symbols=torch.tensor([model.metadata['symbols'].index(data.metadata['symbols'][int(asset)]) for asset in assets])
+            probabilities=torch.stack([model.calibrated_probabilities(m(x_tensor,q_tensor,symbols),symbols) for m in model.models]).mean(0).numpy()
         prediction[start:start+len(chosen)]=probabilities
         if start==0 or (start//batch_size)%10==0:
             progress=dict(stage='predict',done=start+len(chosen),total=len(indices),seconds=time.perf_counter()-began)

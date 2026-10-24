@@ -14,11 +14,11 @@ ROOT=Path(__file__).resolve().parents[1]
 sys.path.insert(0,str(ROOT))
 for file in [*ROOT.glob('*.py'),*(ROOT/'wallex_lab').rglob('*.py'),*(ROOT/'scripts').glob('*.py')]:
     ast.parse(file.read_text(encoding='utf-8-sig'),filename=str(file))
-for bundle in ('late','pretrained8'):
+for bundle,(members,symbols) in {'late':(3,4),'pretrained8':(1,8),'ten-assets':(3,10)}.items():
     directory=ROOT/'models/barrier-survival'/bundle
     metadata=json.loads((directory/'model.json').read_text(encoding='utf-8'))
-    assert len(metadata['members'])==(3 if bundle=='late' else 1)
-    assert len(metadata['symbols'])==(4 if bundle=='late' else 8)
+    assert len(metadata['members'])==members
+    assert len(metadata['symbols'])==symbols
     for member in metadata['members']:
         assert hashlib.sha256((directory/member['file']).read_bytes()).hexdigest()==member['sha256']
 cfg=json.loads((ROOT/'config/live-execution.json').read_text(encoding='utf-8'))

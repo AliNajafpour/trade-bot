@@ -1,0 +1,234 @@
+{
+  "created_utc": "2026-10-24T21:00:28.304911+00:00",
+  "base_metadata_sha256": "cf244b809d5143f1f6e74e385a653967f0d4d4aad6b9d66afff506159c372134",
+  "historical_helper_sha256": "06d458f4e28272fd71b544a382cf8e6473b4cc189fa664b2aa4431717ad8e33b",
+  "historical_helper_source_sha256": "7b3379663885243e6461c9c700f17177b323881965bf17fee8aaed9a0a7e09a9",
+  "driver_sha256": "7cb19cf9784cfc7c001484c04bc841668547920af71a941708ef28c0063c5c30",
+  "cached_protocol_sha256": "3b78f2e12c04bc81c71d0a535d16c42cc7e2dc332a9a28d9ece5962892183085",
+  "cached_arrays_sha256": "3770d9b90c7091138f0a38ac5192a20fe1e80aa823755d3b6f491a04bb78c894",
+  "sources": [
+    {
+      "symbol": "XRPUSDT",
+      "source_manifest_sha256": "5e9623a214b372a4adbbf6469650e833f8abe8602b4563fb9dbec148024c9e66",
+      "values_sha256": "1bd28c0991bc868d55af556bfcde0e215a8f0234b07a608ff7b748bbe89a1d04",
+      "times_sha256": "e89acedf7ff2fa6f35a61426f6a7fbaeb1bc36cb02e36ecaaf17d4e3e1866ea1",
+      "rows": 2002960,
+      "quality": {
+        "expected_minutes": 2003040,
+        "observed_minutes": 2002960,
+        "missing_minutes": 80,
+        "gap_count": 1,
+        "internal_missing_minutes": 80,
+        "leading_missing_minutes": 0,
+        "trailing_missing_minutes": 0,
+        "coverage_fraction_1m": 0.9999600607077243,
+        "coverage_complete": false,
+        "zero_volume_fraction": 3.594679873786796e-05,
+        "zero_trade_fraction": 3.594679873786796e-05,
+        "flat_fraction": 0.0003270160162958821
+      }
+    },
+    {
+      "symbol": "DOGEUSDT",
+      "source_manifest_sha256": "5e9623a214b372a4adbbf6469650e833f8abe8602b4563fb9dbec148024c9e66",
+      "values_sha256": "75d97a0b6611af879026b04d6f3c571a1e0a5ffb4975049cb25fc689d4b0bd7a",
+      "times_sha256": "e89acedf7ff2fa6f35a61426f6a7fbaeb1bc36cb02e36ecaaf17d4e3e1866ea1",
+      "rows": 2002960,
+      "quality": {
+        "expected_minutes": 2003040,
+        "observed_minutes": 2002960,
+        "missing_minutes": 80,
+        "gap_count": 1,
+        "internal_missing_minutes": 80,
+        "leading_missing_minutes": 0,
+        "trailing_missing_minutes": 0,
+        "coverage_fraction_1m": 0.9999600607077243,
+        "coverage_complete": false,
+        "zero_volume_fraction": 9.585812996764788e-05,
+        "zero_trade_fraction": 9.585812996764788e-05,
+        "flat_fraction": 0.0031827894715820587
+      }
+    },
+    {
+      "symbol": "ADAUSDT",
+      "source_manifest_sha256": "5e9623a214b372a4adbbf6469650e833f8abe8602b4563fb9dbec148024c9e66",
+      "values_sha256": "0537c0d0ecdedeb07d73a52d70c8dd26e657ccba4dd62172a64e67417ec2892c",
+      "times_sha256": "e89acedf7ff2fa6f35a61426f6a7fbaeb1bc36cb02e36ecaaf17d4e3e1866ea1",
+      "rows": 2002960,
+      "quality": {
+        "expected_minutes": 2003040,
+        "observed_minutes": 2002960,
+        "missing_minutes": 80,
+        "gap_count": 1,
+        "internal_missing_minutes": 80,
+        "leading_missing_minutes": 0,
+        "trailing_missing_minutes": 0,
+        "coverage_fraction_1m": 0.9999600607077243,
+        "coverage_complete": false,
+        "zero_volume_fraction": 0.0008662179973639014,
+        "zero_trade_fraction": 0.0008662179973639014,
+        "flat_fraction": 0.021351899189199983
+      }
+    },
+    {
+      "symbol": "BNBUSDT",
+      "source_manifest_sha256": "5e9623a214b372a4adbbf6469650e833f8abe8602b4563fb9dbec148024c9e66",
+      "values_sha256": "3fa2abc705f019ec2e5674e734f47be518702eb779c119a59fb835ec486cd684",
+      "times_sha256": "e89acedf7ff2fa6f35a61426f6a7fbaeb1bc36cb02e36ecaaf17d4e3e1866ea1",
+      "rows": 2002960,
+      "quality": {
+        "expected_minutes": 2003040,
+        "observed_minutes": 2002960,
+        "missing_minutes": 80,
+        "gap_count": 1,
+        "internal_missing_minutes": 80,
+        "leading_missing_minutes": 0,
+        "trailing_missing_minutes": 0,
+        "coverage_fraction_1m": 0.9999600607077243,
+        "coverage_complete": false,
+        "zero_volume_fraction": 3.594679873786796e-05,
+        "zero_trade_fraction": 3.594679873786796e-05,
+        "flat_fraction": 5.9412070136198423e-05
+      }
+    },
+    {
+      "symbol": "TRXUSDT",
+      "source_manifest_sha256": "3bc20af95c7183d638ad08dfff81572b9b811433d6f64511e51b9dd870c84fca",
+      "values_sha256": "a56afd5981de0e59c9f30bd7d8e35ebcd2a2b26a81a246a0c442e1d8d1b422eb",
+      "times_sha256": "47295b6188db7e4f4129a599307d21d45238e445e7b9467afb3224ab0a31fc8d",
+      "rows": 527040,
+      "quality": {
+        "expected_minutes": 527040,
+        "observed_minutes": 527040,
+        "missing_minutes": 0,
+        "gap_count": 0,
+        "internal_missing_minutes": 0,
+        "leading_missing_minutes": 0,
+        "trailing_missing_minutes": 0,
+        "coverage_fraction_1m": 1.0,
+        "coverage_complete": true,
+        "zero_volume_fraction": 1.8973891924711598e-06,
+        "zero_trade_fraction": 1.8973891924711598e-06,
+        "flat_fraction": 0.0032654068002428657
+      }
+    },
+    {
+      "symbol": "LTCUSDT",
+      "source_manifest_sha256": "3bc20af95c7183d638ad08dfff81572b9b811433d6f64511e51b9dd870c84fca",
+      "values_sha256": "152b9e05448368a684a558803e9858ac20ad60a7ba9dd2ad0960f064aee6e6b4",
+      "times_sha256": "47295b6188db7e4f4129a599307d21d45238e445e7b9467afb3224ab0a31fc8d",
+      "rows": 527040,
+      "quality": {
+        "expected_minutes": 527040,
+        "observed_minutes": 527040,
+        "missing_minutes": 0,
+        "gap_count": 0,
+        "internal_missing_minutes": 0,
+        "leading_missing_minutes": 0,
+        "trailing_missing_minutes": 0,
+        "coverage_fraction_1m": 1.0,
+        "coverage_complete": true,
+        "zero_volume_fraction": 5.692167577413479e-06,
+        "zero_trade_fraction": 5.692167577413479e-06,
+        "flat_fraction": 0.002910595021250759
+      }
+    }
+  ],
+  "boundaries": [
+    "2025-10-29",
+    "2026-08-24",
+    "2026-09-07",
+    "2026-09-21",
+    "2026-10-23"
+  ],
+  "purge_minutes": 1440,
+  "context_minutes": 10080,
+  "audit": [
+    {
+      "symbol": "XRPUSDT",
+      "origins": 1420,
+      "recomputed_origins": 12,
+      "roles": {
+        "fit": 1192,
+        "selection": 52,
+        "calibration": 52,
+        "test": 124
+      }
+    },
+    {
+      "symbol": "DOGEUSDT",
+      "origins": 1420,
+      "recomputed_origins": 12,
+      "roles": {
+        "fit": 1192,
+        "selection": 52,
+        "calibration": 52,
+        "test": 124
+      }
+    },
+    {
+      "symbol": "ADAUSDT",
+      "origins": 1420,
+      "recomputed_origins": 12,
+      "roles": {
+        "fit": 1192,
+        "selection": 52,
+        "calibration": 52,
+        "test": 124
+      }
+    },
+    {
+      "symbol": "BNBUSDT",
+      "origins": 1420,
+      "recomputed_origins": 12,
+      "roles": {
+        "fit": 1192,
+        "selection": 52,
+        "calibration": 52,
+        "test": 124
+      }
+    },
+    {
+      "symbol": "TRXUSDT",
+      "origins": 1420,
+      "recomputed_origins": 12,
+      "roles": {
+        "fit": 1192,
+        "selection": 52,
+        "calibration": 52,
+        "test": 124
+      }
+    },
+    {
+      "symbol": "LTCUSDT",
+      "origins": 1420,
+      "recomputed_origins": 12,
+      "roles": {
+        "fit": 1192,
+        "selection": 52,
+        "calibration": 52,
+        "test": 124
+      }
+    }
+  ],
+  "hardware": "NVIDIA GeForce RTX 3050 6GB Laptop GPU",
+  "torch": "2.13.0+cu130",
+  "training": "Only six new asset embedding rows per member; original four rows and all other parameters frozen",
+  "limitations": [
+    "Sparse six-hour origins; correlated queries are not independent samples.",
+    "Historical price-touch evaluation is not profitability or execution evidence.",
+    "Embedding-only adaptation has lower capacity than full retraining.",
+    "Binance training to live venues has unmeasured calibration shift."
+  ],
+  "training_sources": {
+    "actual_loaded_training_sources": {
+      "wallex_lab/barrier_survival.py": "80b67fce8bf56567c396aeef386e5d57637617ed88bce9f2ef279e8ca73fc612",
+      "wallex_lab/barrier_dense.py": "e51fab16a57d10c6bb4b63e132ffee6b479d343ea351791355719f5aa37e058a",
+      "wallex_lab/barrier_dataset.py": "14bb34b3cf6f16f892b4330146641741975db5a844f49bb34a2ba97fb741e9d1",
+      "scripts/train_barrier_survival.py": "19247f5db3653dab44ca4719c476f7489f9ba039017f0c7feac4707b9da97879"
+    },
+    "note": "The cached historical protocol source hash for barrier_survival.py differs; current root and production implementations match outside parent per-symbol calibration support. Architecture, forward, labels and loss are unchanged."
+  },
+  "metadata_finalizer_sha256": "6d4a8ee717a4db0d7a1349f1abfa93a3891c94cd71473fcb7ee41dd976f60d7d",
+  "dataset_manifest_sha256": "517e412d29fd4d2c3f79c4ca4e059b5b5b30b2098fb05d859b209230156a7bee"
+}

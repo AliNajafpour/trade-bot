@@ -1,0 +1,124 @@
+{
+  "tp_fraction": 0.02,
+  "sl_fraction": 0.02,
+  "horizon_minutes": 1440,
+  "threshold": 0.55,
+  "limitations": [
+    "Historical price-touch only; no orders, fills, costs or profit measured.",
+    "Sparse six-hour origins; not a continuous portfolio simulation.",
+    "The threshold was supplied by user, not selected on test results."
+  ],
+  "source_sha256": "08c8da7f90133486c700c6d2d5808e34290a8488868a7fda6212d8dc1fa64829",
+  "model_metadata_sha256": "55583750b050a7cce5db183688e2185d15e77ce9b38148be410afc38ae06be2c",
+  "interpretation": "Probability-threshold counts on sampled historical origins, not executed trades or return.",
+  "results": [
+    {
+      "symbol": "XRPUSDT",
+      "test_origins": 124,
+      "temperature": 1.0504080057144165,
+      "long_side": {
+        "side": "long",
+        "threshold": 0.55,
+        "threshold_semantics": "Absolute TP-first probability by 24h",
+        "passes_probability_threshold": 0,
+        "mean_tp_first_24h": 0.37066301703453064,
+        "mean_sl_first_24h": 0.4568159878253937,
+        "mean_no_touch_24h": 0.17252101004123688,
+        "observed_tp_first_24h": 42,
+        "observed_sl_first_24h": 56,
+        "ambiguous_first_touch": 0,
+        "observed_no_touch_24h": 26
+      }
+    },
+    {
+      "symbol": "DOGEUSDT",
+      "test_origins": 124,
+      "temperature": 0.9919453263282776,
+      "long_side": {
+        "side": "long",
+        "threshold": 0.55,
+        "threshold_semantics": "Absolute TP-first probability by 24h",
+        "passes_probability_threshold": 0,
+        "mean_tp_first_24h": 0.3840728998184204,
+        "mean_sl_first_24h": 0.4939775764942169,
+        "mean_no_touch_24h": 0.12194954603910446,
+        "observed_tp_first_24h": 50,
+        "observed_sl_first_24h": 56,
+        "ambiguous_first_touch": 0,
+        "observed_no_touch_24h": 18
+      }
+    },
+    {
+      "symbol": "ADAUSDT",
+      "test_origins": 124,
+      "temperature": 1.0161418914794922,
+      "long_side": {
+        "side": "long",
+        "threshold": 0.55,
+        "threshold_semantics": "Absolute TP-first probability by 24h",
+        "passes_probability_threshold": 0,
+        "mean_tp_first_24h": 0.42506858706474304,
+        "mean_sl_first_24h": 0.515451192855835,
+        "mean_no_touch_24h": 0.05948016792535782,
+        "observed_tp_first_24h": 61,
+        "observed_sl_first_24h": 57,
+        "ambiguous_first_touch": 0,
+        "observed_no_touch_24h": 6
+      }
+    },
+    {
+      "symbol": "BNBUSDT",
+      "test_origins": 124,
+      "temperature": 0.9146625399589539,
+      "long_side": {
+        "side": "long",
+        "threshold": 0.55,
+        "threshold_semantics": "Absolute TP-first probability by 24h",
+        "passes_probability_threshold": 0,
+        "mean_tp_first_24h": 0.25633853673934937,
+        "mean_sl_first_24h": 0.2957778573036194,
+        "mean_no_touch_24h": 0.44788360595703125,
+        "observed_tp_first_24h": 23,
+        "observed_sl_first_24h": 34,
+        "ambiguous_first_touch": 0,
+        "observed_no_touch_24h": 67
+      }
+    },
+    {
+      "symbol": "TRXUSDT",
+      "test_origins": 124,
+      "temperature": 0.8927736282348633,
+      "long_side": {
+        "side": "long",
+        "threshold": 0.55,
+        "threshold_semantics": "Absolute TP-first probability by 24h",
+        "passes_probability_threshold": 0,
+        "mean_tp_first_24h": 0.045925531536340714,
+        "mean_sl_first_24h": 0.05332529544830322,
+        "mean_no_touch_24h": 0.9007492065429688,
+        "observed_tp_first_24h": 2,
+        "observed_sl_first_24h": 2,
+        "ambiguous_first_touch": 0,
+        "observed_no_touch_24h": 120
+      }
+    },
+    {
+      "symbol": "LTCUSDT",
+      "test_origins": 124,
+      "temperature": 1.0594799518585205,
+      "long_side": {
+        "side": "long",
+        "threshold": 0.55,
+        "threshold_semantics": "Absolute TP-first probability by 24h",
+        "passes_probability_threshold": 0,
+        "mean_tp_first_24h": 0.4097558856010437,
+        "mean_sl_first_24h": 0.4726208448410034,
+        "mean_no_touch_24h": 0.11762326955795288,
+        "observed_tp_first_24h": 46,
+        "observed_sl_first_24h": 64,
+        "ambiguous_first_touch": 0,
+        "observed_no_touch_24h": 14
+      }
+    }
+  ]
+}

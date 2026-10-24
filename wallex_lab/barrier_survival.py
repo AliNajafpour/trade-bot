@@ -95,7 +95,19 @@ def fit_temperature(logits,event,cause,survive):
 
 class SurvivalPredictor:
     def __init__(self,models,metadata):
+        temperatures=metadata.get('temperatures_by_symbol',{})
+        if (not isinstance(temperatures,dict) or set(temperatures)-set(metadata['symbols'])
+                or any(not isinstance(value,(int,float)) or not np.isfinite(value) or value<=0
+                       for value in [metadata['temperature'],*temperatures.values()])):
+            raise ValueError('Invalid calibration temperature metadata')
         self.models=[model.eval().cpu() for model in models];self.metadata=metadata
+
+    def calibrated_probabilities(self,logits,assets):
+        if logits.ndim!=4 or assets.shape!=(len(logits),):raise ValueError('Invalid calibrated batch shape')
+        names=[self.metadata['symbols'][index] for index in assets.detach().cpu().tolist()]
+        temperature=torch.tensor([self.metadata.get('temperatures_by_symbol',{}).get(name,self.metadata['temperature'])
+            for name in names],device=logits.device,dtype=logits.dtype).reshape(-1,1,1,1)
+        return incidence(logits/temperature)
 
     @staticmethod
     def save(path,models,metadata):
@@ -144,9 +156,8 @@ class SurvivalPredictor:
         q=barrier_query(entry,tp,sl,sigma,ref,side)
         if q.shape!=(1,8):raise ValueError('One barrier pair per request required')
         x=torch.from_numpy(seq[None]);query=torch.from_numpy(q[None]);asset=torch.tensor([self.metadata['symbols'].index(symbol)])
-        temperature=self.metadata['temperature']
         with torch.inference_mode():
-            probabilities=torch.stack([incidence(model(x,query,asset)/temperature)[0,0] for model in self.models]).numpy()
+            probabilities=torch.stack([self.calibrated_probabilities(model(x,query,asset),asset)[0,0] for model in self.models]).numpy()
         mean=probabilities.mean(0);std=probabilities.std(0);forecasts=[]
         for index,horizon in enumerate(HORIZONS):
             tp_p,sl_p,survival=[float(v) for v in mean[index]];touch=tp_p+sl_p

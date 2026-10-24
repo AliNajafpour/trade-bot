@@ -16,7 +16,7 @@ sys.path.insert(0,str(Path(__file__).resolve().parents[1]))
 from scripts.backtest_survival_threshold import MINUTE,THRESHOLDS,GEOMETRY,causal_batch,make_origins,threshold_candidates
 from wallex_lab.barrier_dataset import HORIZONS,barrier_query,sha256,write_json
 from wallex_lab.barrier_dense import IndexedBarrierDataset
-from wallex_lab.barrier_survival import SurvivalPredictor,incidence
+from wallex_lab.barrier_survival import SurvivalPredictor
 from wallex_lab.barrier_only import simulate
 from wallex_lab.first_touch import FirstTouchBook
 
@@ -93,8 +93,9 @@ def infer_missing(data,model,indices,pairs,root,batch_size,device):
                 assert np.array_equal(times[ends[selected]]+MINUTE,np.asarray(data.arrays['time_ns'][chosen[selected]]))
             q=np.stack([barrier_query(ref,ref*(1+np.array(pairs)[:,0]),ref*(1-np.array(pairs)[:,1]),s,ref) for s,ref in zip(sigma,reference)])
             with torch.inference_mode():
-                xt=torch.from_numpy(x).to(device);qt=torch.from_numpy(q).to(device);at=torch.as_tensor(assets.astype(np.int64),device=device)
-                answer[positions]=torch.stack([incidence(m(xt,qt,at)/model.metadata['temperature']) for m in model.models]).mean(0).cpu().numpy()
+                xt=torch.from_numpy(x).to(device);qt=torch.from_numpy(q).to(device)
+                at=torch.tensor([model.metadata['symbols'].index(data.metadata['symbols'][int(asset)]) for asset in assets],device=device)
+                answer[positions]=torch.stack([model.calibrated_probabilities(m(xt,qt,at),at) for m in model.models]).mean(0).cpu().numpy()
         temp=folder/(path.stem+'.tmp.npz');np.savez_compressed(temp,origin_index=indices[begin:end],geometry=np.array(pairs),probability=answer[begin:end]);temp.replace(path)
         progress=dict(stage='missing_inference',completed=end,total=len(indices),pairs=len(pairs),seconds=time.perf_counter()-started,pid=os.getpid(),device=device)
         write_json(root/'progress.json',progress);print(json.dumps(progress),flush=True)

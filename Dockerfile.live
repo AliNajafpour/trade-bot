@@ -3,20 +3,27 @@ WORKDIR /app
 ENV PYTHONUNBUFFERED=1 PYTHONDONTWRITEBYTECODE=1 \
     OMP_NUM_THREADS=1 MKL_NUM_THREADS=1 OPENBLAS_NUM_THREADS=1 NUMEXPR_NUM_THREADS=1 \
     WALLEX_DATA_DIR=/data MPLCONFIGDIR=/data/cache/matplotlib HF_HOME=/data/cache/huggingface \
-    LLM_PROVIDER=openai_compatible LANGSMITH_TRACING=false PORT=8080
+    LLM_PROVIDER=openai_compatible LANGSMITH_TRACING=false PORT=8080 \
+    WALLEX_EXECUTION_PRESET=weekly_council_ten
 COPY requirements-live.txt ./
-RUN pip install --no-cache-dir torch==2.7.1 --index-url https://download.pytorch.org/whl/cpu \
-    && pip install --no-cache-dir -r requirements-live.txt
+RUN pip install --no-cache-dir --no-compile torch==2.7.1 --index-url https://download.pytorch.org/whl/cpu \
+    && pip install --no-cache-dir --no-compile -r requirements-live.txt
 COPY config/foundation-models.json ./config/foundation-models.json
 COPY scripts/foundation_models.py ./scripts/foundation_models.py
-RUN python scripts/foundation_models.py
+ARG INSTALL_FOUNDATION_MODELS=0
+RUN if [ "$INSTALL_FOUNDATION_MODELS" = "1" ]; then \
+    pip install --no-cache-dir --no-compile chronos-forecasting==2.3.2 transformers==5.16.1 accelerate==1.14.0 \
+        einops==0.8.2 safetensors==0.8.0 huggingface-hub==1.29.0 \
+    && python scripts/foundation_models.py; fi
 COPY run.py ./
 COPY wallex_lab ./wallex_lab
 COPY config ./config
 COPY models/barrier-survival/late ./models/barrier-survival/late
 COPY models/barrier-survival/pretrained8 ./models/barrier-survival/pretrained8
+COPY models/barrier-survival/ten-assets ./models/barrier-survival/ten-assets
 COPY docs/fee-evidence ./docs/fee-evidence
 COPY third_party ./third_party
-RUN python run.py verify
+RUN python run.py verify \
+    && python -c "from wallex_lab import live_runner, intelligence_reports, cloud, deployment_web; from wallex_lab.council_runtime import fetch_quote"
 EXPOSE 8080
 CMD ["python", "-m", "wallex_lab.cloud"]
