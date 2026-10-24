@@ -1,0 +1,1 @@
+{"status":"passed","origins":8847,"cadence_minutes":15,"public_predictor_max_absolute_error":1.1920928955078125e-07,"checked":"Declared complete cadence/cohort, normalized probabilities, public inference parity/support, strict absolute entry thresholds, fees/accounting, cash, overlap cap, censoring, no timeout exits, frozen source hash"}

@@ -1,0 +1,1 @@
+{"selected_context":360,"candidates":[{"seed":42,"config":{"symbols":4,"context":360,"width":64,"layers":2},"best_selection_nll":1.9580522113376193,"epochs":6,"fit_origins":12048,"selection_origins":1152,"seconds":22.543573300004937,"checkpoint_sha256":"9882a6da7759118c2cc7859e10416ac29dc4bf4aeb5a99eb92eb78be5d528597"}],"selected_without_test":true}

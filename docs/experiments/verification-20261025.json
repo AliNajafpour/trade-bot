@@ -1,0 +1,1 @@
+{"status": "passed", "evidence_files": 564, "json_files": 409, "csv_files": 50, "matrix_rows": 640, "headline_numbers_verified": true, "ten_asset_zero_long_passes_verified": true, "scope": "Saved artifact consistency; no historical experiments rerun or live status refreshed"}

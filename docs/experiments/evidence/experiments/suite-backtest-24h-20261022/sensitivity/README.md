@@ -1,0 +1,7 @@
+# Numeric execution and availability controls
+
+`numeric-sensitivity.json` and `.csv` replay the17 actual `model_only` methods in the frozen suite manifest. The three context methods (02,04,15) are excluded. No training, model selection, news substitution or LLM inference is performed. Each method/view/cost combination starts with a separate100USDT account. The three views are the retrospective full day, candidates after recorded model availability, and candidates after exact suite availability. These are execution and availability controls, not a search for the best method.
+
+Candidate snapshots and their source hashes are in `inputs/`; per-case JSON ledgers, trade CSVs and minute equity arrays are in `ledgers/`. Each completed ledger is checked for cash, cost basis, fees, realized and unrealized PnL, trade counts and finite known equity. Positions still open at the data boundary remain open and are marked net of hypothetical exit costs.
+
+The passive equal-weight buy-and-hold baseline deploys100% of its100USDT account across four assets. Strategies cap each position at15% of account equity and also apply a0.5% trade-risk budget, so their cash exposure and risk differ. The passive comparison is **not risk matched and does not establish alpha**. The cash baseline remains100USDT. Historical M1 prices are execution proxies;0/5/15bps slippage per side are assumptions, and13bps fees per side use the archived public fee receipt.

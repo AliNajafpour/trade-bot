@@ -1,6 +1,7 @@
 * text=auto eol=lf
 *.pt binary
 models/** -text -whitespace
+docs/experiments/** -text -whitespace
 *.png binary
 third_party/** -text -whitespace
 wallex_lab/vendor_kronos/** -text -whitespace

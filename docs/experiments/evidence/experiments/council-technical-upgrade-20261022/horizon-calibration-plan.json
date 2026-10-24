@@ -1,0 +1,1 @@
+{"fit_origin_start":"2026-08-03","fit_origin_end_exclusive":"2026-08-22","selection_origin_start":"2026-08-25","maximum_label_horizon_minutes":1440,"selection_penalty_nll":0.001,"criterion":"Choose five horizon temperatures only if selection NLL+.001 < scalar selection NLL","temperature_bounds":[0.5,3],"refit_after_selection":false,"selected_without_September":true}

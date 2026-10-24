@@ -1,0 +1,39 @@
+# Event-driven spot orchestrator
+
+## Current entry contract, 2026-10-21
+
+Technical discovery creates a candidate. Regime, relevant news and source-bound fundamental assessments run first; a separate genuine LLM call then combines their outputs, numeric forecasts, book features, current fee scenario and paper account limits. Only this final decision can authorize a plan. A technical rejection, high news/fundamental event risk or independent risk failure blocks entry. Final sizing cannot exceed the technical risk allowance.
+
+Missing news or fundamentals remains unknown. It permits a conditional price/volume WATCH with at most half risk; it cannot authorize unconditional ENTER. The final gate can reject, reduce size, change the confirmation condition or shorten the holding period. Existing exits remain independent of inference availability and budget.
+
+Pending plans are checked before every entry. New selected event evidence or analysis older than 30 minutes invalidates the approval. The following tick must rescan and obtain a fresh final decision within the configured evaluation budget. Repeated unchanged observations do not count as new evidence. Fundamental facts require source URLs, asset relevance, finite values or bounded text, aware observation/availability clocks and a maximum 24-hour observation age. Historical measurement times remain separate from receipt availability.
+
+The original forecast deadline also bounds pending approval and the position's final expiry. Waiting for a confirmation cannot extend the forecast window. Inference is currently synchronous under one coordinator's lock, so processing other ticks in that coordinator waits for analysis completion. Budget-independent exit logic is tested; concurrent live execution during inference is not implemented. This is a paper evaluation backend.
+
+An explicitly configured research candidate can now reload the M5/H6 ETH HGB/GRU fits. Use `--benchmark-case-dir runs/horizon-benchmark-20261021/ETHTMN/5m/h360 --benchmark-combo mean_hgb_gru --benchmark-margin 0.0025` with `scripts/run_orchestrator.py`. The 0.25% margin was selected in earlier validation; current roundtrip costs are added separately. This choice was made after viewing historical tests and remains exploratory. Saved-model predictions are checked against the original forecast artifacts. This combined policy includes additional entry/risk gates and does not inherit the original technical backtest return.
+
+Run `python scripts/collect_fundamentals.py`, then `python scripts/run_fusion_probe.py --output runs/<new-probe-directory>` for a contemporary receipt-backed probe. The collector records public RSS, Wallex depth/trades and M1 candles, complete M5 bars, and DefiLlama Ethereum TVL/stablecoin facts. Only genuine technical candidates enter the paper orchestrator. If the technical gate fails, the probe may test specialist wiring with a clearly labelled diagnostic packet; it cannot create a trade. The data source, not an LLM, supplies fundamental values. Polling still requires the existing external snapshot adapter; there is no exchange-order connector.
+
+See `reports/fusion-results.md` for the actual four-role diagnostic and `docs/fusion-review.md` for independent review. Current news was never inserted into the earlier historical profit ledgers. Incremental return from adding news/fundamentals has not been established.
+
+## Earlier implementation context
+
+Implement the user's requested architecture now, reusing existing receipt-backed Codex inference, public-context schema and causal setup scanner. No Wallex account API, MCP or paid LLM API is available. The installed Codex CLI supplies real specialist inference. Execution is explicitly paper only, with no network order method.
+
+The orchestrator reads normalized snapshot events from a JSONL file or polls an atomically replaced snapshot JSON every five seconds. A snapshot supplies symbol, UTC asof, canonical candle CSV path, optional fresh bid/ask book and optional observed news context. No book is invented from candles. The fast numeric layer drops unfinished candles, validates freshness/gaps and emits compact features only when a setup passes cost geometry and spread checks. Duplicate setup IDs do not repeatedly wake models.
+
+News and regime specialists run independently in parallel on compact packets, never raw candle arrays. News is source-timed, deduplicated and capped; missing news is unknown, never a fabricated neutral observation. Local USDT/TMN changes can accompany summaries, without inventing a global premium. News text is untrusted data and tool use is disabled. Runtime receipts preserve actual responses. API-based providers can later implement the same inference callback.
+
+A deterministic risk/execution agent owns quote-specific cash, spot-only inventory, formula sizing, spread/cost limits, position caps and the exact user-supplied credit exclusions. The exclusions are not a listing of all available markets; a future authenticated connector must still confirm venue/account tradability. No borrowing or shorting. Sales never exceed held quantity. Paper receipts and state are durable and idempotent.
+
+AI can enter, arm an expiring price/volume plan, or reject. A plan requires a later quote after analysis; WATCH additionally needs a later closed candle satisfying its frozen price/volume condition. Expiry, stop and target checks run on every fresh tick independently of LLM call budget. Cash balances remain separate for TMN and USDT. High news-event risk blocks new entries; missing news reduces risk instead of silently turning into good news.
+
+Implement in parallel: specialist worker owns specialists.py/check; numeric worker owns fast_market.py/check; execution worker owns spot.py/check; parent owns policy file, orchestrator, feed CLI, integration checks and actual Codex smoke run. Preserve old historical modules and artifacts. Validate real-response receipts, duplicate wake suppression, conditional activation/expiry, budget-independent exits, blocked symbols, cash/inventory invariants and restart recovery. Replay is clearly labelled historical simulation with unmodeled inference latency; paper polling uses wall-clock freshness and never executes against a pre-inference quote.
+
+## Financial-model discovery correction
+
+The user explicitly rejected using hand-written indicator templates as the main discovery engine. Default discovery now runs fresh HGB, GRU and genuine Kronos financial-encoder inference on completed M15 candles. HGB and GRU reuse independently fitted local market checkpoints. Kronos uses verified pretrained weights with TRAIN-only scaler/PCA/Ridge heads; heads for ETH/SOL/USDT were fitted now using the existing causal protocol, rather than transferring BTC coefficients across assets. Original benchmark files remain unchanged.
+
+The shared forecast horizon is three bars. HGB net labels are converted back to gross return, then all three forecasts use the current configured roundtrip cost. A majority must exceed costs, followed by independent payoff geometry. A model consensus can create an opportunity even when no old indicator template matches. Indicators remain feature summaries, risk geometry and explicit price/volume execution confirmations. Missing or incompatible model assets block new discovery; there is no heuristic replacement. Inference retains artifact hashes, training/selection boundaries, wall-clock training times and retrospective-contamination caveats.
+
+Kronos official source: https://github.com/shiyu-coder/Kronos . This integration uses its genuine frozen hidden representation with a locally fitted return head, not generative sampled OHLC paths. Neither it nor the local HGB/GRU comparators have established profitable Wallex performance.

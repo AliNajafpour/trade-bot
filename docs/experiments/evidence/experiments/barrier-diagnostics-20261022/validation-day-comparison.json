@@ -1,0 +1,1 @@
+{"metric":"whole observed-path NLL, week minus 2d","sampled_selection_origins":512,"utc_days":13,"mean_difference":-0.009176567662507296,"lower95":-0.031083482187287233,"upper95":0.010264612805919294,"limitation":"Descriptive paired-day resampling of selection scores; checkpoints selected on this validation period. Not independent test evidence or adjusted for model selection."}

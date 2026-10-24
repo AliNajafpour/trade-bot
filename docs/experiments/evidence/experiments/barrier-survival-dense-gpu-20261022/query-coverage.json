@@ -1,0 +1,1 @@
+{"sampled_origins":4096,"requests_per_origin":128,"unique_distance_offset_side_min":90,"unique_median":128.0,"unique_mean":127.57763671875,"floor_distance_fraction":0.0075855255126953125,"ceiling_distance_fraction":0.0040340423583984375,"note":"Clipping and anchor repetition can create duplicate requests. These counts are not independent market outcomes."}
