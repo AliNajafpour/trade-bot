@@ -41,10 +41,17 @@ def age(value):
     return (datetime.now(timezone.utc)-stamp).total_seconds()
 
 
+def settled_order(row):
+    response=row.get('response') or {}
+    return (isinstance(response,dict) and row['state']=='acknowledged' and response.get('active') is False
+        and response.get('status') in ('FILLED','CANCELED','CANCELLED','REJECTED','EXPIRED'))
+
+
 class Gateway:
     def __init__(self,root,config,exchange):
         self.root=Path(root);self.root.mkdir(parents=True,exist_ok=True)
         self.config=config;self.exchange=exchange
+        self.market_rules={}
         if config.get('account_scope')!='credit_subaccount': raise ValueError('Only the selected credit account is supported')
         if not config.get('account_binding'): raise ValueError('Read-only account binding required')
         self.exclusions=load_exclusions(REPO/'config/credit-excluded-markets.txt')
@@ -95,12 +102,18 @@ class Gateway:
         if (any(s not in snapshot.get(field,{}) for s in required for field in ('quotes','markets','fees'))
                 or any(s[:-4] not in snapshot.get('balances',{}) for s in required)):
             raise ValueError('Owned or pending market data is unavailable')
+        self.market_rules.update(snapshot['markets'])
 
     def _writes(self):
         if self.config.get('enabled') is not True or self.exchange.allow_writes is not True:
             raise PermissionError('Real exchange writes are disabled')
 
-    def positions(self):
+    def _is_dust(self,symbol,quantity):
+        precision=self.market_rules.get(symbol,{}).get('stepSize')
+        return (type(precision) is int and 0<=precision<=18
+            and 0<quantity<Decimal(1).scaleb(-precision))
+
+    def positions(self,*,include_dust=False):
         result=[]
         for row in self.db.execute("SELECT id FROM orders WHERE role='entry'").fetchall():
             entry=self.order(row['id']);response=entry['response'] or {}
@@ -108,16 +121,22 @@ class Gateway:
             if not bought: continue
             symbol=entry['payload']['symbol'];base=symbol[:-4]
             bought-=sum((number(f['fee']) for f in response.get('fills',[]) if f.get('feeAsset')==base),Decimal(0))
-            sold=Decimal(0)
+            sold=Decimal(0);settled=settled_order(entry)
             for child in self.db.execute('SELECT id FROM orders WHERE parent=?',(entry['id'],)).fetchall():
-                fill=self.order(child['id'])['response'] or {}
+                child=self.order(child['id']);fill=child['response'] or {}
+                if child['state']!='abandoned' or child['response'] is not None:
+                    settled=settled and settled_order(child)
                 sold+=number(fill.get('executedQty',0))
                 sold+=sum((number(f['fee']) for f in fill.get('fills',[]) if f.get('feeAsset')==base),Decimal(0))
             remaining=bought-sold
             if remaining<0: raise ValueError('Owned-inventory accounting mismatch; reconciliation required')
             if remaining:
+                dust=settled and sold>0 and self._is_dust(symbol,remaining)
+                if dust and not include_dust:continue
                 cost=number(response.get('executedSum',0))+sum((number(f['fee']) for f in response.get('fills',[]) if f.get('feeAsset')=='USDT'),Decimal(0))
-                result.append(dict(parent=entry['id'],symbol=symbol,quantity=str(remaining),cost_basis=str(cost*remaining/bought),**entry['context']['barriers']))
+                position=dict(parent=entry['id'],symbol=symbol,quantity=str(remaining),cost_basis=str(cost*remaining/bought),**entry['context']['barriers'])
+                if dust:position['dust']=True
+                result.append(position)
         return result
 
     def closed_trades(self):
@@ -130,16 +149,11 @@ class Gateway:
                 if not symbol.endswith('USDT'): continue
                 def settled(row,side):
                     response=row['response'];payload=row['payload']
-                    if (row['state']!='acknowledged' or not isinstance(response,dict)
-                            or response.get('active') is not False
-                            or response.get('status') not in ('FILLED','CANCELED','CANCELLED','REJECTED','EXPIRED')
-                            or payload['symbol']!=symbol or payload['side']!=side
-                            or response.get('clientOrderId')!=row['id']
-                            or any(response.get(k)!=payload[k] for k in ('symbol','side','type'))):
+                    if not settled_order(row) or payload['symbol']!=symbol or payload['side']!=side:
                         raise ValueError('Unsettled trade')
+                    self._validate_identity(row,response)
                     quantity=number(response['executedQty']);original=number(response['origQty'],True)
                     if (quantity>original or original!=number(payload['quantity'],True)
-                            or number(response['price'])!=number(payload['price'])
                             or (response['status']=='FILLED' and quantity!=original)):
                         raise ValueError('Invalid fill counters')
                     fills=response.get('fills',[])
@@ -160,20 +174,28 @@ class Gateway:
                     return quantity,base_fee,cash+quote_fee if side=='BUY' else cash-quote_fee
                 bought,base_fee,cost=settled(entry,'BUY');bought-=base_fee
                 if bought<=0 or cost<=0: continue
-                sold=proceeds=Decimal(0);reasons=[]
+                sold=proceeds=Decimal(0);reasons=[];prepared=False
                 for child in self.db.execute('SELECT id FROM orders WHERE parent=? ORDER BY rowid',(entry['id'],)).fetchall():
                     row=self.order(child['id'])
-                    if row['state'] in ('prepared','abandoned') and row['response'] is None: continue
+                    if row['state'] in ('prepared','abandoned') and row['response'] is None:
+                        prepared=prepared or row['state']=='prepared'
+                        continue
                     if row['role'] not in ('stop','exit'): raise ValueError('Unknown sell role')
                     quantity,base_fee,cash=settled(row,'SELL')
                     sold+=quantity+base_fee;proceeds+=cash
                     if quantity:
                         reason='native_stop' if row['role']=='stop' else row['context'].get('reason','unknown_exit')
                         if reason not in reasons: reasons.append(reason)
-                if sold!=bought: continue
-                result.append(dict(entry_id=entry['id'],symbol=symbol,cost_usdt=str(cost),proceeds_usdt=str(proceeds),
+                remaining=bought-sold
+                if remaining and (prepared or sold<=0 or not self._is_dust(symbol,remaining)):continue
+                original_cost=cost
+                if remaining:cost=cost*sold/bought
+                trade=dict(entry_id=entry['id'],symbol=symbol,cost_usdt=str(cost),proceeds_usdt=str(proceeds),
                     pnl_usdt=str(proceeds-cost),net_return=float((proceeds-cost)/cost),
-                    context=entry['context'],exit_reasons=reasons))
+                    context=entry['context'],exit_reasons=reasons)
+                if remaining:
+                    trade.update(settlement='closed_with_dust',dust_quantity=str(remaining),dust_cost_basis_usdt=str(original_cost-cost))
+                result.append(trade)
             except (ValueError,KeyError,TypeError,ArithmeticError):
                 # An incomplete or inconsistent receipt cannot become a training label.
                 continue
@@ -308,19 +330,28 @@ class Gateway:
         else: self._entry_evidence(payload,tp,sl,evidence,risk_multiplier,market)
         return self._record(key,'entry',payload,context)
 
+    def _validate_identity(self,row,response):
+        payload=row['payload']
+        # Wallex returns a triggered protective stop as its executed LIMIT child.
+        converted=(row['role']=='stop' and payload['type']=='STOP_LIMIT' and payload['side']=='SELL'
+            and response.get('type')=='LIMIT' and number(response.get('executedQty',0))>0
+            and response.get('status') in ('PARTIALLY_FILLED','FILLED','CANCELED','CANCELLED','EXPIRED'))
+        if (response.get('clientOrderId')!=row['id'] or any(response.get(k)!=payload[k] for k in ('symbol','side'))
+                or (response.get('type')!=payload['type'] and not converted)):
+            raise ValueError('Exchange order identity mismatch')
+        if number(response['price'])!=number(payload['price']):raise ValueError('Exchange limit price mismatch')
+        if payload['type']=='STOP_LIMIT' and (not converted or response.get('stopPrice') is not None):
+            if number(response['stopPrice'])!=number(payload['stop_Price']):raise ValueError('Exchange protective trigger mismatch')
+
     def _observe(self,key,response):
         row=self.order(key);payload=row['payload']
-        if response.get('clientOrderId')!=key or any(response.get(k)!=payload[k] for k in ('symbol','side','type')):
-            raise ValueError('Exchange order identity mismatch')
+        self._validate_identity(row,response)
         executed=number(response['executedQty']);original=number(response['origQty'],True)
         previous=number((row['response'] or {}).get('executedQty',0))
         if executed<previous or executed>original or original!=number(payload['quantity']): raise ValueError('Invalid exchange execution counters')
         if type(response.get('active')) is not bool or response.get('status') not in ('NEW','PARTIALLY_FILLED','FILLED','CANCELED','CANCELLED','REJECTED','EXPIRED'): raise ValueError('Unknown exchange order state')
         if response['active']!=(response['status'] in ('NEW','PARTIALLY_FILLED')) or (response['status']=='FILLED' and executed!=original):
             raise ValueError('Inconsistent exchange order state')
-        if number(response['price'])!=number(payload['price']): raise ValueError('Exchange limit price mismatch')
-        if payload['type']=='STOP_LIMIT' and number(response['stopPrice'])!=number(payload['stop_Price']):
-            raise ValueError('Exchange protective trigger mismatch')
         if executed:
             fills=response.get('fills')
             if not isinstance(fills,list) or sum((number(f['quantity']) for f in fills),Decimal(0))!=executed:

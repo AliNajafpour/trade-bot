@@ -33,6 +33,8 @@ with TemporaryDirectory() as temporary:
             for k in ('enabled','account_binding','max_capital_usdt','stop_capabilities_verified'):
                 assert changed[k]==config[k]
             bootstrap(root/'data');assert json.loads(path.read_text())==changed
+            active=deepcopy(changed);active['enabled']=True;path.write_text(json.dumps(active))
+            bootstrap(root/'data');assert json.loads(path.read_text())==active,'Same-preset redeploy disabled an armed account'
             changed.update(enabled=True,decision_mode='weekly_model_only');path.write_text(json.dumps(changed))
             try:bootstrap(root/'data')
             except ValueError:pass

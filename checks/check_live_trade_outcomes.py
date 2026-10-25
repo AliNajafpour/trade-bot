@@ -32,6 +32,7 @@ def check():
             assert Decimal(trade['pnl_usdt'])==Decimal('7.9') and abs(trade['net_return']-float(Decimal('7.9')/101))<1e-12
             assert trade['symbol']=='BTCUSDT' and trade['context']==gateway.order(entry)['context']
             assert trade['exit_reasons']==['target']
+            assert set(trade)=={'entry_id','symbol','cost_usdt','proceeds_usdt','pnl_usdt','net_return','context','exit_reasons'},'Existing closure digests must survive upgrade'
             before=[tuple(row) for row in gateway.db.execute('SELECT * FROM orders')]
             assert gateway.closed_trades()==gateway.closed_trades()
             assert before==[tuple(row) for row in gateway.db.execute('SELECT * FROM orders')]

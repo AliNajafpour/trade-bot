@@ -40,7 +40,7 @@ class Controls:
             source = {'status': 'starting'}
         # Only runner-owned public fields cross this authenticated boundary.
         allowed = ('status', 'updated_at', 'execution_ready', 'account_binding', 'positions',
-                   'recent_orders', 'last_scan', 'monitor', 'error_type','adaptive_learning','reports')
+                   'recent_orders', 'last_scan', 'monitor', 'error_type','adaptive_learning','reports','dust_positions')
         result = {key: source[key] for key in allowed if key in source}
         account = source.get('account') or {}
         result['account'] = {key: account[key] for key in ('observed_at', 'balances', 'fees') if key in account}

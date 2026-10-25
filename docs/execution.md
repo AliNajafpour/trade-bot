@@ -45,6 +45,28 @@ python checks/check_live_execution.py
 
 It covers duplicate and conflicting intents, pending exposure, concurrent dispatch, partial fills, accepted-but-timed-out submissions, cancellation races, owned inventory, stale orders, rejected protection and pre-submission recovery. It makes no network requests and does not validate live stop behavior or profitability.
 
+## Stop recovery and dust
+
+Triggered protective orders may be returned by Wallex as executed `LIMIT` orders.
+Recovery accepts this shape only for a locally recorded `STOP_LIMIT` sell with
+confirmed positive fills and matching client ID, symbol, side, quantity and limit
+price. A supplied trigger must still match. A zero-fill `LIMIT` without trigger
+evidence remains unresolved. Reconciliation never resubmits the uncertain stop.
+
+After confirmed terminal entry and exit receipts, a remaining quantity smaller
+than one authenticated venue quantity step is recorded separately as dust. It
+does not consume an open-position slot or trigger another protective sell. Unknown
+orders and remaining full quantity steps remain managed exposure. Closed-trade
+labels allocate actual entry cost to the sold quantity, preserve residual cost
+basis separately, and never invent sale proceeds for dust. Quantity rules must be
+observed in a fresh authenticated snapshot after restart before dust is retired.
+Dust is tracked per entry and remains in actual account balances. Residues from
+different entries are not consolidated or automatically sold.
+
+```bash
+python checks/check_triggered_stop_recovery.py
+```
+
 ## Secret handling
 
 Keep keys in `.env` or the launching process environment. No key should have withdrawal permission for this research workflow. Do not commit private MCP responses, account snapshots, logs or live SQLite ledgers. The `.gitignore` excludes those artifacts and all model checkpoints except the three intentional final inference members. Original third-party licenses and attribution are retained.

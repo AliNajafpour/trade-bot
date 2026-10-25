@@ -269,6 +269,7 @@ class LiveRunner:
         self.state['decision_mode']=self.config.get('decision_mode','council')
         if self.gateway:
             self.state['positions'] = self.gateway.positions()
+            self.state['dust_positions'] = [p for p in self.gateway.positions(include_dust=True) if p.get('dust')]
             orders = []
             for row in self.gateway.db.execute('SELECT id FROM orders ORDER BY rowid DESC LIMIT 30'):
                 order = self.gateway.order(row['id'])
